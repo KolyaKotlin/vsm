@@ -1,0 +1,12 @@
+dataset/
+Датасет.zip
+.env
+.env.*
+__pycache__/
+node_modules/
+dist/
+.venv/
+venv/
+*.pyc
+.DS_Store
+Thumbs.db
