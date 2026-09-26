@@ -43,7 +43,9 @@ export default function App() {
     api
       .profile(employeeId)
       .then((profile) => setUnread(profile.unread_notifications))
-      .catch(() => setUnread(0))
+      // Счётчик непрочитанных — не повод показывать ошибку на весь экран, но и
+      // обнулять его нельзя: это выдумало бы «уведомлений нет».
+      .catch((problem) => console.warn('Не удалось обновить счётчик уведомлений', problem))
   }, [employeeId, refreshKey])
 
   const refresh = () => setRefreshKey((value) => value + 1)

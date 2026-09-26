@@ -1,3 +1,4 @@
+import http from 'node:http'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -14,6 +15,10 @@ export default defineConfig({
       '/api': {
         target: process.env.VSM_API_URL || 'http://127.0.0.1:8000',
         changeOrigin: true,
+        // Uvicorn закрывает простаивающее соединение через пять секунд, а пул
+        // Node успевает взять его для следующего запроса — это давало случайные
+        // 500 в интерфейсе. Каждый запрос идёт по своему соединению.
+        agent: new http.Agent({ keepAlive: false }),
       },
     },
   },
