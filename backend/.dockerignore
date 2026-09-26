@@ -1,0 +1,9 @@
+.venv/
+data/
+tests/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+pyproject.toml
+requirements-dev.txt
