@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-26",
+  "note": "Список сценариев, поставляемых с приложением. Бэкенд отдаёт такой же документ по GET /api/v1/scenarios — формат намеренно совпадает, чтобы источник данных подменялся без правок UI.",
+  "scenarios": [
+    "boarding_no_ticket.json",
+    "medical_emergency.json",
+    "intoxicated_passenger.json",
+    "meal_out_of_stock.json",
+    "unattended_item.json"
+  ]
+}
