@@ -4,7 +4,10 @@ import { useApiData } from '../useApiData.js'
 
 export default function ScenarioList({ employeeId, onStart, refreshKey }) {
   const { data: scenarios, error } = useApiData(() => api.scenarios(), [])
-  const { data: history } = useApiData(() => api.attempts(employeeId), [employeeId, refreshKey])
+  const { data: history, error: historyError } = useApiData(
+    () => api.attempts(employeeId),
+    [employeeId, refreshKey],
+  )
 
   if (error) return <p className="error">{error}</p>
   if (!scenarios) return <p className="muted">Загрузка сценариев…</p>
@@ -40,7 +43,9 @@ export default function ScenarioList({ employeeId, onStart, refreshKey }) {
                 {scenario.car} · основная компетенция: {competencyTitle(scenario.primary_competency)}
               </p>
 
-              {best ? (
+              {historyError ? (
+                <p className="muted">История прохождений недоступна: {historyError}</p>
+              ) : best ? (
                 <p className={`result ${best.passed ? 'passed' : 'failed'}`}>
                   {best.passed ? 'Закрыт' : 'Не сдан'}: лояльность {best.loyalty}, безопасность {best.safety}
                 </p>
