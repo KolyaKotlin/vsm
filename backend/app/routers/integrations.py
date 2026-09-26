@@ -1,8 +1,8 @@
 """Заглушки интеграции с внешними системами.
 
-Контракт описан и работает на демо-данных, но реальных подключений к HR и LMS
-в прототипе нет: нет авторизации, подписи запросов и обмена ключами. Ограничения
-перечислены в docs/LIMITS_AND_ROADMAP.md.
+Контракт описан и работает на демо-данных, но реальных подключений к HR, LMS и
+биллингу в прототипе нет: нет авторизации, подписи запросов и обмена ключами.
+Ограничения перечислены в docs/LIMITS_AND_ROADMAP.md.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import sqlite3
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from .. import engine, profiles, service
+from .. import billing, engine, profiles, service
 from ..deps import get_connection
 
 router = APIRouter(prefix="/api/integrations", tags=["Интеграции"])
@@ -84,3 +84,55 @@ def export_results(employee_id: int, connection: sqlite3.Connection = Depends(ge
             if item["status"] == "finished"
         ],
     }
+
+
+class ChargePayload(BaseModel):
+    """Доплата, оформляемая проводником на борту.
+
+    Реквизиты оплаты в тренажёр не передаются: оплата проходит через утверждённый
+    канал, а здесь фиксируются только повод, сумма и статус.
+    """
+
+    employee_id: int
+    kind: billing.ChargeKind = Field(description="class_upgrade — повышение класса, service — платная услуга")
+    title: str = Field(description="Что именно оплачивается, формулировкой для пассажира")
+    amount_kopecks: int = Field(gt=0, description="Сумма в копейках: без чисел с плавающей точкой")
+    attempt_id: int | None = Field(default=None, description="Заполняется, если доплата оформлена внутри сценария")
+    channel: str = billing.DEFAULT_CHANNEL
+
+
+@router.post("/billing/charges", summary="Оформить доплату за повышение класса или услугу")
+def create_charge(
+    payload: ChargePayload, connection: sqlite3.Connection = Depends(get_connection)
+) -> dict[str, object]:
+    """Регламент допускает повышение класса только с доплатой, поэтому оформление
+    начинается здесь, а пересадка считается законной лишь после оплаты."""
+    profiles.employee_row(connection, payload.employee_id)
+    return billing.create_charge(
+        connection,
+        employee_id=payload.employee_id,
+        kind=payload.kind,
+        title=payload.title,
+        amount_kopecks=payload.amount_kopecks,
+        attempt_id=payload.attempt_id,
+        channel=payload.channel,
+    )
+
+
+@router.post("/billing/charges/{charge_id}/pay", summary="Подтвердить оплату доплаты")
+def pay_charge(charge_id: int, connection: sqlite3.Connection = Depends(get_connection)) -> dict[str, object]:
+    return billing.mark_paid(connection, charge_id)
+
+
+@router.post("/billing/charges/{charge_id}/refund", summary="Вернуть оплату")
+def refund_charge(charge_id: int, connection: sqlite3.Connection = Depends(get_connection)) -> dict[str, object]:
+    """Возврат за услугу, о платности которой пассажира не предупредили."""
+    return billing.refund(connection, charge_id)
+
+
+@router.get("/billing/charges", summary="Доплаты, оформленные проводником")
+def list_charges(
+    employee_id: int, connection: sqlite3.Connection = Depends(get_connection)
+) -> list[dict[str, object]]:
+    profiles.employee_row(connection, employee_id)
+    return billing.charges(connection, employee_id)

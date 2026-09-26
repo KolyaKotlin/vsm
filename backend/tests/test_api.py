@@ -178,6 +178,60 @@ def test_hr_integration_creates_employee_and_lms_exports_results(client: TestCli
     assert export["level"] >= 1
 
 
+def test_billing_charge_goes_from_pending_to_paid_and_refunded(client: TestClient, trainee_id: int) -> None:
+    created = client.post(
+        "/api/integrations/billing/charges",
+        json={
+            "employee_id": trainee_id,
+            "kind": "class_upgrade",
+            "title": "Повышение класса до бизнес-класса, вагон 5 → вагон 7",
+            "amount_kopecks": 245000,
+        },
+    )
+    assert created.status_code == 200, created.text
+    charge = created.json()
+    assert charge["status"] == "pending"
+    assert charge["channel"] == "mobile_cash"
+
+    paid = client.post(f"/api/integrations/billing/charges/{charge['id']}/pay").json()
+    assert paid["status"] == "paid"
+
+    # Повторная оплата — недопустимый переход, а не ошибка сервера.
+    again = client.post(f"/api/integrations/billing/charges/{charge['id']}/pay")
+    assert again.status_code == 400
+    assert "оплачена" in again.json()["detail"]
+
+    refunded = client.post(f"/api/integrations/billing/charges/{charge['id']}/refund").json()
+    assert refunded["status"] == "refunded"
+
+    listed = client.get("/api/integrations/billing/charges", params={"employee_id": trainee_id}).json()
+    assert [item["id"] for item in listed] == [charge["id"]]
+
+
+def test_billing_refuses_unpaid_refund_and_non_positive_amount(client: TestClient, trainee_id: int) -> None:
+    created = client.post(
+        "/api/integrations/billing/charges",
+        json={
+            "employee_id": trainee_id,
+            "kind": "service",
+            "title": "Плед из каталога товаров на борту",
+            "amount_kopecks": 90000,
+        },
+    ).json()
+
+    early_refund = client.post(f"/api/integrations/billing/charges/{created['id']}/refund")
+    assert early_refund.status_code == 400
+
+    zero = client.post(
+        "/api/integrations/billing/charges",
+        json={"employee_id": trainee_id, "kind": "service", "title": "Бесплатно", "amount_kopecks": 0},
+    )
+    assert zero.status_code == 422
+
+    missing = client.post("/api/integrations/billing/charges/9999/pay")
+    assert missing.status_code == 404
+
+
 def test_scenario_reload_keeps_catalog_available(client: TestClient) -> None:
     reloaded = client.post("/api/scenarios/reload").json()
     assert any(item["id"] == SCENARIO for item in reloaded)

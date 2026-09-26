@@ -15,6 +15,7 @@ flowchart LR
         SC["scoring.py<br/>опыт, уровни, достижения"]
         AN["analytics.py<br/>пробелы и рекомендации"]
         P["profiles.py<br/>профиль, рейтинг, уведомления"]
+        B["billing.py<br/>доплаты: повышение класса,<br/>платные услуги"]
         V["views.py<br/>ответы API без правильных ответов"]
     end
 
@@ -22,11 +23,13 @@ flowchart LR
     DB[("SQLite<br/>сотрудники, попытки, шаги,<br/>очки, достижения")]
     HR["HR-система<br/>(заглушка)"]
     LMS["LMS<br/>(заглушка)"]
+    PAY["Биллинг<br/>(заглушка)"]
 
     UI -->|"/api"| R
     R --> S
     R --> AN
     R --> P
+    R --> B
     S --> E
     S --> SC
     S --> V
@@ -35,8 +38,10 @@ flowchart LR
     SC --> DB
     AN --> DB
     P --> DB
+    B --> DB
     HR -->|"POST /api/integrations/hr/employees"| R
     R -->|"GET /api/integrations/lms/results/{id}"| LMS
+    B -.->|"оплата через<br/>утверждённый канал"| PAY
 ```
 
 Главное решение архитектуры: **движок не знает ни про HTTP, ни про базу**.
@@ -183,7 +188,9 @@ erDiagram
     employees ||--o{ competency_points : ""
     employees ||--o{ employee_achievements : ""
     employees ||--o{ notifications : ""
+    employees ||--o{ billing_charges : ""
     attempts  ||--o{ attempt_steps : ""
+    attempts  ||--o{ billing_charges : ""
     achievements ||--o{ employee_achievements : ""
 ```
 
@@ -192,7 +199,9 @@ erDiagram
 - `attempt_steps` хранит шаг в том виде, в котором его вернул движок, поэтому
   разбор собирается из истории, а не пересчитывается заново;
 - `employees` содержит только служебные поля (логин, отображаемое имя,
-  должность, бригада, депо) и не содержит персональных данных.
+  должность, бригада, депо) и не содержит персональных данных;
+- `billing_charges` хранит повод, сумму в копейках, канал и статус доплаты —
+  реквизиты оплаты не принимаются и не сохраняются.
 
 ## Безопасность в прототипе
 

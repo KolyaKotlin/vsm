@@ -72,3 +72,23 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notifications_employee ON notifications (employee_id, created_at);
+
+-- Доплаты, которые проводник оформляет на борту: повышение класса и платные
+-- услуги. Реквизиты оплаты здесь не хранятся: оплата проходит через
+-- утверждённый канал, а тренажёр знает только факт и сумму.
+CREATE TABLE IF NOT EXISTS billing_charges (
+    id           INTEGER PRIMARY KEY,
+    employee_id  INTEGER NOT NULL REFERENCES employees (id) ON DELETE CASCADE,
+    -- Тренировочная доплата привязана к попытке, реальная приходит без неё.
+    attempt_id   INTEGER REFERENCES attempts (id) ON DELETE SET NULL,
+    kind         TEXT    NOT NULL CHECK (kind IN ('class_upgrade', 'service')),
+    title        TEXT    NOT NULL,
+    -- Сумма в копейках: денежные значения не храним в числах с плавающей точкой.
+    amount_kopecks INTEGER NOT NULL CHECK (amount_kopecks > 0),
+    channel      TEXT    NOT NULL,
+    status       TEXT    NOT NULL CHECK (status IN ('pending', 'paid', 'refunded')),
+    created_at   TEXT    NOT NULL,
+    updated_at   TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_employee ON billing_charges (employee_id, created_at);

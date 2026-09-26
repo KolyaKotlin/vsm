@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from . import engine, service
+from . import billing, engine, service
 from .db import init_db
 from .routers import catalog, employees, integrations, leaderboard, play
 
@@ -74,6 +74,16 @@ async def scenario_not_found(_: Request, error: service.ScenarioNotFound) -> JSO
 @app.exception_handler(service.EmployeeNotFound)
 async def employee_not_found(_: Request, error: service.EmployeeNotFound) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": f"Проводник {error.args[0]} не найден"})
+
+
+@app.exception_handler(billing.ChargeNotFound)
+async def charge_not_found(_: Request, error: billing.ChargeNotFound) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": f"Доплата {error.args[0]} не найдена"})
+
+
+@app.exception_handler(billing.BillingError)
+async def billing_error(_: Request, error: billing.BillingError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(error)})
 
 
 @app.exception_handler(engine.ScenarioError)
