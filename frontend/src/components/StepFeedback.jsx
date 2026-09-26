@@ -32,6 +32,10 @@ export default function StepFeedback({ step, compact = false }) {
       <p className="feedback-choice">{step.choice_text}</p>
       <p className="feedback-debrief">{step.debrief}</p>
 
+      {/* Сработал условный переход: ситуация повернулась из-за состояния шкал
+          или из-за прошлых решений, и это нужно объяснить прямо. */}
+      {step.branch_note ? <p className="feedback-branch">{step.branch_note}</p> : null}
+
       {!compact && Object.keys(step.competency_gain || {}).length > 0 ? (
         <p className="feedback-gain">
           Очки компетенций:{' '}

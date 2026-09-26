@@ -433,6 +433,17 @@ p {
   color: var(--muted);
 }
 
+/* Пояснение сработавшего условия: ситуация свернула с обычного пути. */
+.feedback-branch {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border-left: 2px solid #f59e0b;
+  border-radius: 0 6px 6px 0;
+  background: rgba(245, 158, 11, 0.08);
+  color: #fcd34d;
+  font-size: 0.88rem;
+}
+
 .debrief-head {
   border: 1px solid var(--line);
   border-radius: var(--radius);

@@ -54,6 +54,49 @@ class Effects(Frozen):
     competencies: dict[str, int] = Field(default_factory=dict)
 
 
+class Condition(Frozen):
+    """Условие перехода: состояние шкал и ход попытки на момент решения.
+
+    Шкалы проверяются уже после применения эффектов решения, а таймауты и
+    ошибочные решения считаются вместе с текущим шагом. Поэтому условие читается
+    так же, как его воспринимает человек: «если после этого решения безопасность
+    ниже порога».
+    """
+
+    loyalty_below: int | None = None
+    loyalty_at_least: int | None = None
+    safety_below: int | None = None
+    safety_at_least: int | None = None
+    after_timeout: bool | None = None
+    after_harmful: bool | None = None
+
+    def is_empty(self) -> bool:
+        return all(value is None for value in self.model_dump().values())
+
+    def holds(self, *, loyalty: int, safety: int, timeouts: int, harmful: int) -> bool:
+        checks = (
+            self.loyalty_below is None or loyalty < self.loyalty_below,
+            self.loyalty_at_least is None or loyalty >= self.loyalty_at_least,
+            self.safety_below is None or safety < self.safety_below,
+            self.safety_at_least is None or safety >= self.safety_at_least,
+            self.after_timeout is None or (timeouts > 0) == self.after_timeout,
+            self.after_harmful is None or (harmful > 0) == self.after_harmful,
+        )
+        return all(checks)
+
+
+class Branch(Frozen):
+    """Условный переход: срабатывает вместо обычного next.
+
+    Ветки проверяются по порядку, побеждает первая подходящая. `note` попадает в
+    разбор шага: проводник должен понимать, почему ситуация повернулась иначе.
+    """
+
+    when: Condition
+    next: str
+    note: str
+
+
 class Option(Frozen):
     """Вариант реплики или действия проводника."""
 
@@ -63,6 +106,7 @@ class Option(Frozen):
     effects: Effects = Field(default_factory=Effects)
     debrief: str
     next: str
+    branches: list[Branch] = Field(default_factory=list)
 
 
 class Timeout(Frozen):
@@ -72,6 +116,7 @@ class Timeout(Frozen):
     effects: Effects = Field(default_factory=Effects)
     debrief: str
     next: str
+    branches: list[Branch] = Field(default_factory=list)
 
 
 class Node(Frozen):
@@ -118,6 +163,9 @@ class Step(Frozen):
     safety_after: int
     competency_gain: dict[str, int]
     debrief: str
+    # Заполняется, если сработал условный переход: объяснение, почему ситуация
+    # пошла не по обычному пути.
+    branch_note: str | None = None
 
 
 class State(Frozen):
@@ -181,13 +229,35 @@ def validate(scenario: Scenario) -> None:
             seen.add(option.id)
             if option.next not in scenario.nodes:
                 raise ScenarioError(f"{scenario.id}/{node_id}/{option.id}: ссылка на несуществующий узел {option.next!r}")
+            _validate_branches(scenario, f"{node_id}/{option.id}", option.branches)
 
-        if node.timeout and node.timeout.next not in scenario.nodes:
-            raise ScenarioError(f"{scenario.id}/{node_id}: таймаут ведёт в несуществующий узел {node.timeout.next!r}")
+        if node.timeout:
+            if node.timeout.next not in scenario.nodes:
+                raise ScenarioError(f"{scenario.id}/{node_id}: таймаут ведёт в несуществующий узел {node.timeout.next!r}")
+            _validate_branches(scenario, f"{node_id}/таймаут", node.timeout.branches)
 
     unreachable = set(scenario.nodes) - _reachable_nodes(scenario)
     if unreachable:
         raise ScenarioError(f"{scenario.id}: недостижимые узлы: {', '.join(sorted(unreachable))}")
+
+
+def _validate_branches(scenario: Scenario, where: str, branches: list[Branch]) -> None:
+    """Условный переход без выполнимого условия — это скрытая ошибка сценария."""
+    for index, branch in enumerate(branches, start=1):
+        place = f"{scenario.id}/{where}: условный переход №{index}"
+
+        if branch.next not in scenario.nodes:
+            raise ScenarioError(f"{place} ведёт в несуществующий узел {branch.next!r}")
+
+        if branch.when.is_empty():
+            raise ScenarioError(f"{place} без условия: он всегда подменял бы обычный переход")
+
+        for scale, below, at_least in (
+            ("лояльности", branch.when.loyalty_below, branch.when.loyalty_at_least),
+            ("безопасности", branch.when.safety_below, branch.when.safety_at_least),
+        ):
+            if below is not None and at_least is not None and at_least >= below:
+                raise ScenarioError(f"{place}: условие по {scale} никогда не выполнится ({at_least} ≥ {below})")
 
 
 def _reachable_nodes(scenario: Scenario) -> set[str]:
@@ -202,9 +272,12 @@ def _reachable_nodes(scenario: Scenario) -> set[str]:
         reachable.add(node_id)
 
         node = scenario.nodes[node_id]
-        queue.extend(option.next for option in node.options)
+        for option in node.options:
+            queue.append(option.next)
+            queue.extend(branch.next for branch in option.branches)
         if node.timeout:
             queue.append(node.timeout.next)
+            queue.extend(branch.next for branch in node.timeout.branches)
 
     return reachable
 
@@ -249,6 +322,7 @@ def apply_choice(scenario: Scenario, state: State, option_id: str) -> State:
         state=state,
         node=node,
         next_node_id=option.next,
+        branches=option.branches,
         choice_text=option.text,
         option_id=option.id,
         timed_out=False,
@@ -271,6 +345,7 @@ def apply_timeout(scenario: Scenario, state: State) -> State:
         state=state,
         node=node,
         next_node_id=node.timeout.next,
+        branches=node.timeout.branches,
         choice_text=node.timeout.text,
         option_id=None,
         timed_out=True,
@@ -286,6 +361,7 @@ def _advance(
     state: State,
     node: Node,
     next_node_id: str,
+    branches: list[Branch],
     choice_text: str,
     option_id: str | None,
     timed_out: bool,
@@ -296,6 +372,17 @@ def _advance(
 ) -> State:
     loyalty_after = clamp(state.loyalty + effects.loyalty)
     safety_after = clamp(state.safety + effects.safety)
+
+    timeouts = sum(1 for item in state.steps if item.timed_out) + (1 if timed_out else 0)
+    harmful = sum(1 for item in state.steps if item.quality == "harmful") + (1 if quality == "harmful" else 0)
+    next_node_id, branch_note = _resolve_transition(
+        default_next=next_node_id,
+        branches=branches,
+        loyalty=loyalty_after,
+        safety=safety_after,
+        timeouts=timeouts,
+        harmful=harmful,
+    )
 
     step = Step(
         node_id=state.node_id,
@@ -313,6 +400,7 @@ def _advance(
         safety_after=safety_after,
         competency_gain=competency_gain,
         debrief=debrief,
+        branch_note=branch_note,
     )
 
     return State(
@@ -322,6 +410,22 @@ def _advance(
         safety=safety_after,
         steps=[*state.steps, step],
     )
+
+
+def _resolve_transition(
+    *,
+    default_next: str,
+    branches: list[Branch],
+    loyalty: int,
+    safety: int,
+    timeouts: int,
+    harmful: int,
+) -> tuple[str, str | None]:
+    """Выбирает следующий узел: первая подходящая ветка или обычный переход."""
+    for branch in branches:
+        if branch.when.holds(loyalty=loyalty, safety=safety, timeouts=timeouts, harmful=harmful):
+            return branch.next, branch.note
+    return default_next, None
 
 
 def summarize(scenario: Scenario, state: State) -> Summary:
