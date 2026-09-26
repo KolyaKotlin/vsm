@@ -45,6 +45,8 @@ export default function ScenarioList({ employeeId, onStart, refreshKey }) {
 
               {historyError ? (
                 <p className="muted">История прохождений недоступна: {historyError}</p>
+              ) : !history ? (
+                <p className="muted">Смотрим историю прохождений…</p>
               ) : best ? (
                 <p className={`result ${best.passed ? 'passed' : 'failed'}`}>
                   {best.passed ? 'Закрыт' : 'Не сдан'}: лояльность {best.loyalty}, безопасность {best.safety}
