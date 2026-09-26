@@ -185,6 +185,29 @@ def validate(scenario: Scenario) -> None:
         if node.timeout and node.timeout.next not in scenario.nodes:
             raise ScenarioError(f"{scenario.id}/{node_id}: таймаут ведёт в несуществующий узел {node.timeout.next!r}")
 
+    unreachable = set(scenario.nodes) - _reachable_nodes(scenario)
+    if unreachable:
+        raise ScenarioError(f"{scenario.id}: недостижимые узлы: {', '.join(sorted(unreachable))}")
+
+
+def _reachable_nodes(scenario: Scenario) -> set[str]:
+    """Узлы, до которых можно дойти от старта: защита от забытых веток."""
+    reachable: set[str] = set()
+    queue = [scenario.start]
+
+    while queue:
+        node_id = queue.pop()
+        if node_id in reachable:
+            continue
+        reachable.add(node_id)
+
+        node = scenario.nodes[node_id]
+        queue.extend(option.next for option in node.options)
+        if node.timeout:
+            queue.append(node.timeout.next)
+
+    return reachable
+
 
 def start_attempt(scenario: Scenario) -> State:
     return State(

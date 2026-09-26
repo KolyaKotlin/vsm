@@ -23,6 +23,61 @@ def test_all_scenarios_are_valid(all_scenarios: dict[str, engine.Scenario]) -> N
         engine.validate(scenario)
 
 
+def test_every_scenario_is_branching_and_explains_itself(all_scenarios: dict[str, engine.Scenario]) -> None:
+    for scenario in all_scenarios.values():
+        situations = [node for node in scenario.nodes.values() if node.kind == "situation"]
+        outcomes = [node for node in scenario.nodes.values() if node.kind == "outcome"]
+
+        assert len(situations) >= 3, f"{scenario.id}: сценарий должен быть многошаговым"
+        assert len(outcomes) >= 3, f"{scenario.id}: у сценария должно быть несколько исходов"
+
+        for node in situations:
+            assert node.timer_seconds, f"{scenario.id}: у ситуации нет таймера"
+            assert len(node.options) >= 3, f"{scenario.id}: слишком мало вариантов решения"
+            assert {option.quality for option in node.options} >= {"optimal", "harmful"}, (
+                f"{scenario.id}: в ситуации нет и оптимального, и ошибочного варианта"
+            )
+            for option in node.options:
+                assert len(option.debrief) > 40, f"{scenario.id}/{option.id}: разбор слишком короткий"
+
+        # Обе шкалы должны реально работать в каждом сценарии, а не только одна.
+        deltas = [option.effects for node in situations for option in node.options]
+        assert any(item.loyalty for item in deltas), f"{scenario.id}: лояльность ни на что не влияет"
+        assert any(item.safety for item in deltas), f"{scenario.id}: безопасность ни на что не влияет"
+
+
+def test_unreachable_node_is_detected() -> None:
+    scenario = engine.Scenario(
+        id="orphan",
+        title="Сценарий с забытой ветвью",
+        summary="Служебный сценарий для теста валидации.",
+        service_class="стандарт",
+        car="Вагон 1",
+        primary_competency="service",
+        start="only",
+        nodes={
+            "only": engine.Node(
+                kind="situation",
+                narration="Ситуация.",
+                options=[
+                    engine.Option(
+                        id="go",
+                        text="Дальше.",
+                        quality="acceptable",
+                        debrief="Служебный разбор.",
+                        next="done",
+                    )
+                ],
+            ),
+            "done": engine.Node(kind="outcome", narration="Финал.", verdict="Финал."),
+            "forgotten": engine.Node(kind="outcome", narration="Забытая ветка.", verdict="Забытая ветка."),
+        },
+    )
+
+    with pytest.raises(engine.ScenarioError, match="недостижимые узлы"):
+        engine.validate(scenario)
+
+
 def test_optimal_path_raises_both_scales(conflict: engine.Scenario) -> None:
     state = engine.start_attempt(conflict)
     state = engine.apply_choice(conflict, state, "check_tickets")
