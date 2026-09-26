@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 
 from . import engine, scoring, views
 from .db import now_iso, parse_iso
@@ -31,20 +30,27 @@ class EmployeeNotFound(Exception):
     pass
 
 
-@lru_cache(maxsize=1)
-def catalog() -> dict[str, engine.Scenario]:
-    from . import scenarios
+_catalog: dict[str, engine.Scenario] | None = None
 
-    return scenarios.load_all()
+
+def catalog() -> dict[str, engine.Scenario]:
+    if _catalog is None:
+        return reload_catalog()
+    return _catalog
 
 
 def reload_catalog() -> dict[str, engine.Scenario]:
     """Перечитывает JSON-сценарии без перезапуска сервера.
 
     Нужно для правки сценария на ходу: поправили файл — вызвали перезагрузку.
+    Новый каталог собирается целиком и только потом подменяет рабочий: сценарий
+    с ошибкой вернёт 400, но уже идущая демонстрация продолжит работать.
     """
-    catalog.cache_clear()
-    return catalog()
+    global _catalog
+    from . import scenarios
+
+    _catalog = scenarios.load_all()
+    return _catalog
 
 
 def get_scenario(scenario_id: str) -> engine.Scenario:

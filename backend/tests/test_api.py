@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import sqlite3
 
+import pytest
 from fastapi.testclient import TestClient
+
+from app import engine, scenarios
 
 SCENARIO = "two_passengers_one_seat"
 
@@ -178,3 +181,20 @@ def test_hr_integration_creates_employee_and_lms_exports_results(client: TestCli
 def test_scenario_reload_keeps_catalog_available(client: TestClient) -> None:
     reloaded = client.post("/api/scenarios/reload").json()
     assert any(item["id"] == SCENARIO for item in reloaded)
+
+
+def test_broken_scenario_does_not_break_running_service(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    working = client.get("/api/scenarios").json()
+
+    def fail(*_: object, **__: object) -> None:
+        raise engine.ScenarioError("s1_meet: ссылка на несуществующий узел")
+
+    monkeypatch.setattr(scenarios, "load_all", fail)
+    broken = client.post("/api/scenarios/reload")
+
+    assert broken.status_code == 400
+    assert "несуществующий узел" in broken.json()["detail"]
+    # Опечатка в сценарии не должна обрушить идущую демонстрацию.
+    assert client.get("/api/scenarios").json() == working
