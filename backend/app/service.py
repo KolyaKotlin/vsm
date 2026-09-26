@@ -219,6 +219,7 @@ def _view(
         loyalty=state.loyalty,
         safety=state.safety,
         finished=finished,
+        steps_taken=len(state.steps),
         node=node_view,
         last_step=last_step,
         server_time=now_iso(),

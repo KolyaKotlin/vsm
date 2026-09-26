@@ -71,6 +71,7 @@ class AttemptView(BaseModel):
     loyalty: int
     safety: int
     finished: bool
+    steps_taken: int
     node: NodeView | None = None
     last_step: Step | None = None
     # Время сервера отдаётся вместе с дедлайном: клиент рисует таймер от него,
