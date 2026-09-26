@@ -84,6 +84,9 @@ class Node(Frozen):
     options: list[Option] = Field(default_factory=list)
     timeout: Timeout | None = None
     verdict: str | None = None
+    # Исход, который нельзя считать успешным ни при каких шкалах: например,
+    # пассажир доволен, но правила проезда нарушены.
+    critical_failure: bool = False
 
 
 class Scenario(Frozen):
@@ -161,6 +164,9 @@ def validate(scenario: Scenario) -> None:
             if node.options or node.timeout:
                 raise ScenarioError(f"{scenario.id}/{node_id}: финальный узел не может иметь выборов")
             continue
+
+        if node.critical_failure:
+            raise ScenarioError(f"{scenario.id}/{node_id}: критический исход можно отметить только на финальном узле")
 
         if not node.options:
             raise ScenarioError(f"{scenario.id}/{node_id}: у ситуации нет вариантов решения")
@@ -302,8 +308,9 @@ def summarize(scenario: Scenario, state: State) -> Summary:
         for competency, points in step.competency_gain.items():
             gain[competency] = gain.get(competency, 0) + points
 
-    passed = state.loyalty >= VERDICT_LOYALTY_THRESHOLD and state.safety >= VERDICT_SAFETY_THRESHOLD
     node = current_node(scenario, state)
+    scales_ok = state.loyalty >= VERDICT_LOYALTY_THRESHOLD and state.safety >= VERDICT_SAFETY_THRESHOLD
+    passed = scales_ok and not node.critical_failure
 
     return Summary(
         scenario_id=scenario.id,

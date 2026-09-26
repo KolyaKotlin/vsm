@@ -77,6 +77,48 @@ def test_summary_collects_competencies_and_mistakes(conflict: engine.Scenario) -
     assert summary.steps[-1].debrief
 
 
+def test_critical_outcome_cannot_be_passed(conflict: engine.Scenario) -> None:
+    state = engine.apply_choice(conflict, engine.start_attempt(conflict), "check_tickets")
+    state = engine.apply_choice(conflict, state, "free_upgrade")
+    summary = engine.summarize(conflict, state)
+
+    # Пассажир доволен, но правила проезда нарушены: успехом это не считается.
+    assert summary.loyalty >= engine.VERDICT_LOYALTY_THRESHOLD
+    assert summary.passed is False
+
+
+def test_critical_flag_is_allowed_only_on_outcome_nodes() -> None:
+    scenario = engine.Scenario(
+        id="misplaced_flag",
+        title="Критический флаг не на финале",
+        summary="Служебный сценарий для теста валидации.",
+        service_class="стандарт",
+        car="Вагон 1",
+        primary_competency="service",
+        start="only",
+        nodes={
+            "only": engine.Node(
+                kind="situation",
+                narration="Ситуация.",
+                critical_failure=True,
+                options=[
+                    engine.Option(
+                        id="go",
+                        text="Дальше.",
+                        quality="acceptable",
+                        debrief="Служебный разбор.",
+                        next="done",
+                    )
+                ],
+            ),
+            "done": engine.Node(kind="outcome", narration="Финал.", verdict="Финал."),
+        },
+    )
+
+    with pytest.raises(engine.ScenarioError):
+        engine.validate(scenario)
+
+
 def test_unknown_option_is_rejected(conflict: engine.Scenario) -> None:
     state = engine.start_attempt(conflict)
     with pytest.raises(engine.ScenarioError):
