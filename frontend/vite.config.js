@@ -16,9 +16,20 @@ export default defineConfig({
         target: process.env.VSM_API_URL || 'http://127.0.0.1:8000',
         changeOrigin: true,
         // Uvicorn закрывает простаивающее соединение через пять секунд, а пул
-        // Node успевает взять его для следующего запроса — это давало случайные
-        // 500 в интерфейсе. Каждый запрос идёт по своему соединению.
+        // Node успевает взять его для следующего запроса — это давало пустой
+        // ответ 500, хотя сам сервер запрос не видел. Соединение не переиспользуем
+        // и явно закрываем его после ответа.
         agent: new http.Agent({ keepAlive: false }),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Connection', 'close')
+          })
+          proxy.on('error', (_err, _req, res) => {
+            if (!res || res.headersSent || !res.writeHead) return
+            res.writeHead(502, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ detail: 'Связь с сервером оборвалась. Повторите ещё раз.' }))
+          })
+        },
       },
     },
   },

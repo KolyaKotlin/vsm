@@ -13,8 +13,10 @@ import random
 import re
 import sqlite3
 
+from pydantic import ValidationError
+
 from . import scenarios, service
-from .engine import Scenario, ScenarioError, validate
+from .engine import COMPETENCY_TITLES, Scenario, ScenarioError, validate
 
 ADMIN_CODE = os.environ.get("VSM_ADMIN_CODE", "mentor")
 
@@ -29,23 +31,34 @@ def check_code(code: str) -> None:
 
 
 def _fit_lengths(options: list[dict]) -> None:
+    """Короткая реплика читается как ошибка. Длины держим близко друг к другу."""
     fillers = {
-        "optimal": [" Благодарю.", " Я на связи."],
-        "acceptable": [" На этом остановлюсь.", " Второй раз не повторю."],
-        "harmful": [" Так и сделаю.", " И отойду от спора."],
+        "optimal": " Благодарю.",
+        "acceptable": " На этом остановлюсь.",
+        "harmful": " Так и сделаю.",
     }
-    if not options:
+    if len(options) < 2:
         return
-    for _ in range(8):
+    for _ in range(6):
         longest = max(len(item["text"]) for item in options)
-        short = min(options, key=lambda item: len(item["text"]))
-        if longest - len(short["text"]) <= 50:
+        changed = False
+        for item in options:
+            gap = longest - len(item["text"])
+            if gap <= 50:
+                continue
+            extra = fillers[item["quality"]] * ((gap // len(fillers[item["quality"]])) + 1)
+            text = item["text"].rstrip()
+            item["text"] = text[:-1].rstrip() + extra + "»" if text.endswith("»") else text + extra
+            changed = True
+        if not changed:
             return
-        extra = next((item for item in fillers[short["quality"]] if item.strip() not in short["text"]), None)
-        if extra is None:
-            return
-        text = short["text"].rstrip()
-        short["text"] = text[:-1].rstrip() + extra + "»" if text.endswith("»") else text + extra
+
+
+def _note(text: str) -> str:
+    compact = " ".join(text.split())
+    if len(compact) > 40:
+        return compact
+    return f"{compact} Пассажир должен услышать правило и понять, что делать дальше."
 
 
 def _slug(title: str) -> str:
@@ -71,13 +84,29 @@ def build_scenario_document(payload: dict, number: int) -> dict:
     закрыть разговор. Ошибочный обход правила не даёт сдать попытку.
     """
 
-    title = payload["title"].strip()
-    summary = payload["summary"].strip()
-    competency = payload["primary_competency"]
-    rule = payload["rule"].strip()
-    refusal = payload["refusal"].strip()
-    scene = payload["scene"].strip()
-    passenger = payload["passenger"].strip()
+    title = str(payload.get("title", "")).strip()
+    summary = str(payload.get("summary", "")).strip()
+    competency = str(payload.get("primary_competency", "")).strip()
+    rule = str(payload.get("rule", "")).strip()
+    refusal = str(payload.get("refusal", "")).strip()
+    scene = str(payload.get("scene", "")).strip()
+    passenger = str(payload.get("passenger", "")).strip()
+    missing = [
+        label
+        for label, value in (
+            ("название", title),
+            ("о чём ситуация", summary),
+            ("что происходит", scene),
+            ("реплика пассажира", passenger),
+            ("правило", rule),
+            ("как правило обходят", refusal),
+        )
+        if not value
+    ]
+    if missing:
+        raise AdminError("Заполните поля: " + ", ".join(missing))
+    if competency not in COMPETENCY_TITLES:
+        raise AdminError("Неизвестная компетенция ситуации")
     scenario_id = f"custom_{number}_{_slug(title)}"
     critical = bool(payload.get("critical"))
 
@@ -114,9 +143,9 @@ def build_scenario_document(payload: dict, number: int) -> dict:
                 passenger,
                 25,
                 [
-                    _choice("opt", f"«Я вас понимаю. Давайте разберёмся спокойно: {rule}»", "optimal", 5, 5, competency, 3, f"Сначала признали ситуацию и назвали правило без спора. {summary}", "s2"),
-                    _choice("mid", "«Сейчас не до разговоров. Правило есть, выполняйте его и не задерживайте салон.»", "acceptable", -2, 3, competency, 1, "Правило названо, но человек не услышал, что его услышали. Спор из-за этого становится громче.", "s2"),
-                    _choice("bad", refusal, "harmful", -8, -16, competency, 0, f"Так правило обходится. {summary}", "o_bad"),
+                    _choice("opt", f"«Я вас понимаю. Давайте разберёмся спокойно: {rule}»", "optimal", 5, 5, competency, 3, _note(f"Сначала признали ситуацию и назвали правило без спора. {summary}"), "s2"),
+                    _choice("mid", "«Сейчас не до разговоров. Правило есть, выполняйте его и не задерживайте салон.»", "acceptable", -2, 3, competency, 1, _note("Правило названо, но человек не услышал, что его услышали. Спор из-за этого становится громче."), "s2"),
+                    _choice("bad", refusal, "harmful", -8, -16, competency, 0, _note(f"Так правило обходится. {summary}"), "o_bad"),
                 ],
                 "s2",
             ),
@@ -125,9 +154,9 @@ def build_scenario_document(payload: dict, number: int) -> dict:
                 "«Ну сделайте исключение. Никто ведь не увидит.»",
                 22,
                 [
-                    _choice("opt", "«Исключения не будет. Я подскажу законный следующий шаг и останусь рядом, пока вопрос не закроется.»", "optimal", 5, 5, competency, 3, "Отказ от исключения спокойный, и у человека остаётся понятный следующий шаг.", "s3"),
-                    _choice("mid", "«Исключений нет. Куда идти дальше, спросите на станции, я повторять не буду.»", "acceptable", -2, 3, competency, 1, "Рамка удержана, но человека оставили без маршрута, и он продолжает стоять в проходе.", "s3"),
-                    _choice("bad", "«Ладно, один раз можно. Только никому не говорите, что я разрешил.»", "harmful", -8, -16, competency, 0, "Исключение шёпотом — то же нарушение, только ещё и скрытое от бригады.", "o_bad"),
+                    _choice("opt", "«Исключения не будет. Я подскажу законный следующий шаг и останусь рядом, пока вопрос не закроется.»", "optimal", 5, 5, competency, 3, _note("Отказ от исключения спокойный, и у человека остаётся понятный следующий шаг."), "s3"),
+                    _choice("mid", "«Исключений нет. Куда идти дальше, спросите на станции, я повторять не буду.»", "acceptable", -2, 3, competency, 1, _note("Рамка удержана, но человека оставили без маршрута, и он продолжает стоять в проходе."), "s3"),
+                    _choice("bad", "«Ладно, один раз можно. Только никому не говорите, что я разрешил.»", "harmful", -8, -16, competency, 0, _note("Исключение шёпотом — то же нарушение, только ещё и скрытое от бригады."), "o_bad"),
                 ],
                 "s3",
             ),
@@ -144,11 +173,11 @@ def build_scenario_document(payload: dict, number: int) -> dict:
                         5,
                         competency,
                         3,
-                        "Разговор закрыт: правило на месте, человека поблагодарили и не бросили.",
+                        _note("Разговор закрыт: правило на месте, человека поблагодарили и не бросили."),
                         "o_good",
                     ),
-                    _choice("mid", "«Я всё сказал. Дальше сами, у меня другие пассажиры.»", "acceptable", -2, 3, competency, 1, "Формально ответ дан, но человек остаётся один с нерешённым вопросом.", "o_mixed"),
-                    _choice("bad", refusal, "harmful", -8, -16, competency, 0, "В финале правило снова обошли. Закрыть ситуацию так нельзя.", "o_bad"),
+                    _choice("mid", "«Я всё сказал. Дальше сами, у меня другие пассажиры.»", "acceptable", -2, 3, competency, 1, _note("Формально ответ дан, но человек остаётся один с нерешённым вопросом."), "o_mixed"),
+                    _choice("bad", refusal, "harmful", -8, -16, competency, 0, _note("В финале правило снова обошли. Закрыть ситуацию так нельзя."), "o_bad"),
                 ],
                 "o_bad",
             ),
@@ -178,7 +207,10 @@ def build_scenario_document(payload: dict, number: int) -> dict:
     for node in document["nodes"].values():
         options = node.get("options") or []
         _fit_lengths(options)
-    scenario = Scenario.model_validate(document)
+    try:
+        scenario = Scenario.model_validate(document)
+    except ValidationError as error:
+        raise ScenarioError(f"Ситуацию не удалось собрать: {error.error_count()} ошибок в структуре") from error
     validate(scenario)
     return document
 
@@ -193,7 +225,10 @@ def save_scenario(payload: dict) -> Scenario:
     path = scenarios.SCENARIOS_DIR / f"{document['number']:02d}_{document['id']}.json"
     if path.exists():
         raise AdminError("Файл ситуации уже есть")
-    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except OSError as error:
+        raise AdminError("Не удалось записать ситуацию: папка каталога закрыта для записи") from error
     try:
         service.reload_catalog()
     except ScenarioError:

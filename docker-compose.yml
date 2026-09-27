@@ -8,7 +8,8 @@ services:
       - vsm-data:/data
       # Сценарии подключены томом: файл можно поправить на ходу и перечитать
       # через POST /api/scenarios/reload, не пересобирая образ.
-      - ./backend/scenarios:/app/scenarios:ro
+      # Без «только чтение»: кабинет методиста записывает сюда новую ситуацию.
+      - ./backend/scenarios:/app/scenarios
     ports:
       - "8000:8000"
     healthcheck:

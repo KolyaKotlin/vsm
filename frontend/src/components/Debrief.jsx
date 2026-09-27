@@ -114,7 +114,7 @@ export default function Debrief({ debrief, onRestart, onLeave }) {
           {debrief.unlocked_achievements.map((item) => (
             <li key={item.code}>
               <strong>{item.title}</strong>
-              <Hint label={`Что значит достижение «${item.title}»`}>{item.description}</Hint>
+              <span>{item.description}</span>
             </li>
           ))}
         </ul>

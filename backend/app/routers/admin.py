@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -12,6 +13,7 @@ from ..deps import get_connection
 from ..engine import ScenarioError
 
 router = APIRouter(prefix="/api/admin", tags=["Методист"])
+logger = logging.getLogger(__name__)
 
 
 class AdminCode(BaseModel):
@@ -102,4 +104,7 @@ def create_scenario(payload: NewScenario, x_admin_code: str = Header(default="")
         raise HTTPException(status_code=400, detail=str(error)) from None
     except ScenarioError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
+    except Exception as error:
+        logger.exception("Не удалось добавить ситуацию")
+        raise HTTPException(status_code=400, detail=f"Не удалось добавить ситуацию: {error}") from None
     return views.scenario_brief(scenario)

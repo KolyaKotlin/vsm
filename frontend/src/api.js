@@ -1,16 +1,28 @@
 // Единственное место, где фронтенд знает адреса бэкенда.
 
+const failureMessage = async (response, path) => {
+  const raw = await response.text()
+  try {
+    const problem = JSON.parse(raw)
+    if (typeof problem.detail === 'string' && problem.detail) return problem.detail
+    if (Array.isArray(problem.detail)) {
+      const lines = problem.detail.map((item) => item.msg).filter(Boolean)
+      if (lines.length) return lines.join('. ')
+    }
+  } catch {
+    const text = raw.replace(/\s+/g, ' ').trim()
+    if (text) return text
+  }
+  return `Запрос ${path} завершился ошибкой ${response.status}`
+}
+
 const request = async (path, options = {}) => {
   const response = await fetch(`/api${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
 
-  if (!response.ok) {
-    const problem = await response.json().catch(() => ({}))
-    throw new Error(problem.detail || `Запрос ${path} завершился ошибкой ${response.status}`)
-  }
-
+  if (!response.ok) throw new Error(await failureMessage(response, path))
   return response.json()
 }
 

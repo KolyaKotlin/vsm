@@ -222,6 +222,40 @@ def test_admin_issues_a_conductor_code_and_builds_a_situation(client: TestClient
     assert any(item["title"] == "Пассажир просит плед" for item in mobile.json())
 
 
+def test_admin_adds_a_situation_and_explains_a_locked_catalog(
+    client: TestClient, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pathlib import Path
+
+    from app import scenarios as scenario_files
+
+    monkeypatch.setattr(scenario_files, "SCENARIOS_DIR", tmp_path)
+    payload = {
+        "title": "Пассажир просит плед",
+        "summary": "Плед есть, но пассажир хочет его бесплатно.",
+        "scene": "У тележки пассажир снимает плед.",
+        "passenger": "«Дайте плед, я не буду за него платить.»",
+        "rule": "плед выдаётся за доплату, цену называют до того, как его отдать",
+        "refusal": "«Забирайте так, цену я придумаю потом.»",
+    }
+    created = client.post("/api/admin/scenarios", json=payload, headers={"X-Admin-Code": "mentor"})
+    assert created.status_code == 200, created.text
+    assert created.json()["title"] == "Пассажир просит плед"
+    assert list(tmp_path.glob("*.json"))
+
+    def locked(self: Path, *_args: object, **_kwargs: object) -> None:
+        raise PermissionError("read-only file system")
+
+    monkeypatch.setattr(Path, "write_text", locked)
+    refused = client.post(
+        "/api/admin/scenarios",
+        json={**payload, "title": "Вторая ситуация"},
+        headers={"X-Admin-Code": "mentor"},
+    )
+    assert refused.status_code == 400
+    assert "закрыта для записи" in refused.json()["detail"]
+
+
 def test_access_code_opens_named_profile_and_rejects_unknown(client: TestClient) -> None:
     opened = client.post("/api/access", json={"code": "2401"})
     assert opened.status_code == 200

@@ -911,20 +911,32 @@ h3 {
 }
 
 .award-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.9rem;
-  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.5rem;
+  margin: 0.15rem 0 0;
   padding: 0;
   list-style: none;
 }
 
 .award-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--wash);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--mark);
+}
+
+.award-list strong {
   font-size: 0.92rem;
+}
+
+.award-list span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 450;
+  line-height: 1.35;
 }
 
 .path-title {

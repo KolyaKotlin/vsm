@@ -49,8 +49,10 @@ def test_correct_reply_is_not_given_away(all_scenarios: dict[str, engine.Scenari
 
 
 def test_catalog_covers_every_methodology_situation(all_scenarios: dict[str, engine.Scenario]) -> None:
-    numbers = sorted(scenario.number for scenario in all_scenarios.values())
-    assert numbers == list(range(1, 52))
+    numbers = [scenario.number for scenario in all_scenarios.values()]
+    # 1..51 — ситуации методички. Кабинет методиста может добавить следующие.
+    assert set(range(1, 52)) <= set(numbers)
+    assert len(numbers) == len(set(numbers))
     assert all(scenario.section for scenario in all_scenarios.values())
 
 
