@@ -224,7 +224,8 @@ h3 {
 }
 
 .desk-form input,
-.desk-form textarea {
+.desk-form textarea,
+.desk-form select {
   padding: 0.45rem 0.55rem;
   background: var(--sheet);
   border: 1px solid #b9b0a2;
@@ -234,6 +235,22 @@ h3 {
 
 .desk-form textarea {
   min-height: 4.2rem;
+}
+
+.desk-scenario {
+  grid-column: 1 / -1;
+}
+
+.desk-split {
+  display: grid;
+  grid-template-columns: 1.5fr 0.7fr 0.7fr 1.1fr;
+  gap: 0.75rem;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 450;
 }
 
 .desk-check {
@@ -1387,7 +1404,8 @@ h3 {
   .register-row,
   .scales,
   .debrief-grid,
-  .profile-grid {
+  .profile-grid,
+  .desk-split {
     grid-template-columns: 1fr;
   }
 

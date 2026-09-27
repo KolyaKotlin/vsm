@@ -37,6 +37,7 @@ class NewScenario(BaseModel):
     scene: str
     passenger: str
     rule: str
+    offer: str = ""
     refusal: str
     critical: bool = False
 

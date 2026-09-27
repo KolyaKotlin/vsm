@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api.js'
+import { COMPETENCY_TITLES } from '../competencies.js'
 
 const EMPTY_SCENARIO = {
   title: '',
@@ -11,6 +12,7 @@ const EMPTY_SCENARIO = {
   scene: '',
   passenger: '',
   rule: '',
+  offer: '',
   refusal: '',
   critical: false,
 }
@@ -125,14 +127,63 @@ export default function Admin({ onBack }) {
           <button type="submit" className="primary">Завести и выдать код</button>
         </form>
 
-        <form className="card desk-form" onSubmit={addScenario}>
+        <form className="card desk-form desk-scenario" onSubmit={addScenario}>
           <h3>Новая ситуация</h3>
-          <label>Название<input value={scenario.title} onChange={(event) => setScenario({ ...scenario, title: event.target.value })} required /></label>
-          <label>О чём ситуация<textarea value={scenario.summary} onChange={(event) => setScenario({ ...scenario, summary: event.target.value })} required /></label>
-          <label>Что происходит<textarea value={scenario.scene} onChange={(event) => setScenario({ ...scenario, scene: event.target.value })} required /></label>
-          <label>Реплика пассажира<input value={scenario.passenger} onChange={(event) => setScenario({ ...scenario, passenger: event.target.value })} required /></label>
-          <label>Правило, которое нужно назвать<textarea value={scenario.rule} onChange={(event) => setScenario({ ...scenario, rule: event.target.value })} required /></label>
-          <label>Как правило обходят<input value={scenario.refusal} onChange={(event) => setScenario({ ...scenario, refusal: event.target.value })} required /></label>
+          <p className="muted">
+            Пишите факты этой ситуации. Из них соберётся разговор в несколько шагов:
+            признать, назвать правило, предложить шаг и закрыть. Если промолчать или обойти правило,
+            сцена пойдёт иначе.
+          </p>
+          <div className="desk-split">
+            <label>Название<input value={scenario.title} onChange={(event) => setScenario({ ...scenario, title: event.target.value })} required /></label>
+            <label>Вагон<input value={scenario.car} onChange={(event) => setScenario({ ...scenario, car: event.target.value })} /></label>
+            <label>
+              Класс
+              <select value={scenario.service_class} onChange={(event) => setScenario({ ...scenario, service_class: event.target.value })}>
+                <option value="стандарт">стандарт</option>
+                <option value="комфорт">комфорт</option>
+                <option value="бизнес">бизнес</option>
+              </select>
+            </label>
+            <label>
+              Компетенция
+              <select value={scenario.primary_competency} onChange={(event) => setScenario({ ...scenario, primary_competency: event.target.value })}>
+                {Object.entries(COMPETENCY_TITLES)
+                  .filter(([code]) => code !== 'time_pressure')
+                  .map(([code, title]) => (
+                    <option key={code} value={code}>{title}</option>
+                  ))}
+              </select>
+            </label>
+          </div>
+          <label>
+            О чём ситуация
+            <textarea value={scenario.summary} onChange={(event) => setScenario({ ...scenario, summary: event.target.value })} required />
+          </label>
+          <label>
+            Что видит проводник
+            <span className="field-hint">Место и что уже происходит, без правильного ответа.</span>
+            <textarea value={scenario.scene} onChange={(event) => setScenario({ ...scenario, scene: event.target.value })} required />
+          </label>
+          <label>
+            Реплика пассажира
+            <textarea value={scenario.passenger} onChange={(event) => setScenario({ ...scenario, passenger: event.target.value })} required />
+          </label>
+          <label>
+            Правило, которое нужно назвать
+            <span className="field-hint">Коротко, как это скажет проводник. Без кавычек.</span>
+            <textarea value={scenario.rule} onChange={(event) => setScenario({ ...scenario, rule: event.target.value })} required />
+          </label>
+          <label>
+            Законный следующий шаг
+            <span className="field-hint">Что предложить вместо уступки: куда идти, что оформить, кого позвать.</span>
+            <textarea value={scenario.offer} onChange={(event) => setScenario({ ...scenario, offer: event.target.value })} required />
+          </label>
+          <label>
+            Ошибочная реплика проводника
+            <span className="field-hint">Как правило обходят вслух. Это тоже реплика проводника, не пассажира.</span>
+            <textarea value={scenario.refusal} onChange={(event) => setScenario({ ...scenario, refusal: event.target.value })} required />
+          </label>
           <label className="desk-check">
             <input type="checkbox" checked={scenario.critical} onChange={(event) => setScenario({ ...scenario, critical: event.target.checked })} />
             Нарушение нельзя закрыть удачной фразой в конце

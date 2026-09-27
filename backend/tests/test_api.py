@@ -236,12 +236,20 @@ def test_admin_adds_a_situation_and_explains_a_locked_catalog(
         "scene": "У тележки пассажир снимает плед.",
         "passenger": "«Дайте плед, я не буду за него платить.»",
         "rule": "плед выдаётся за доплату, цену называют до того, как его отдать",
+        "offer": "оформлю доплату и назову цену до того, как отдать плед",
         "refusal": "«Забирайте так, цену я придумаю потом.»",
     }
     created = client.post("/api/admin/scenarios", json=payload, headers={"X-Admin-Code": "mentor"})
     assert created.status_code == 200, created.text
     assert created.json()["title"] == "Пассажир просит плед"
-    assert list(tmp_path.glob("*.json"))
+    written = list(tmp_path.glob("*.json"))
+    assert written
+    saved = __import__("json").loads(written[0].read_text(encoding="utf-8"))
+    first = saved["nodes"]["s1"]["options"][0]["text"]
+    assert "плед выдаётся за доплату" in first
+    assert "оформлю доплату" in first.lower()
+    assert "s_loud" in saved["nodes"] and "s5" in saved["nodes"]
+    assert "Исключения не будет" not in written[0].read_text(encoding="utf-8")
 
     def locked(self: Path, *_args: object, **_kwargs: object) -> None:
         raise PermissionError("read-only file system")
