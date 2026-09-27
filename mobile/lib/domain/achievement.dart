@@ -53,7 +53,8 @@ abstract final class AchievementCatalog {
       icon: Icons.timer_rounded,
       isUnlockedBy: (profile) {
         final recent = profile.runs.reversed.take(3).toList();
-        return recent.length == 3 && recent.every((run) => run.timeoutCount == 0);
+        return recent.length == 3 &&
+            recent.every((run) => run.timeoutCount == 0);
       },
     ),
     Achievement(
@@ -84,7 +85,7 @@ abstract final class AchievementCatalog {
       title: 'Полный маршрут',
       description: 'Пройдены все доступные сценарии',
       icon: Icons.route_rounded,
-      isUnlockedBy: (profile) => profile.completedCount >= 5,
+      isUnlockedBy: (profile) => profile.completedScenarioIds.length >= 5,
     ),
     Achievement(
       id: 'senior',
@@ -105,8 +106,10 @@ abstract final class AchievementCatalog {
   /// Ачивки, которые профиль заслужил, но ещё не получил.
   /// Вызывается после каждого прохождения — так появляется «выдача» награды.
   static List<Achievement> newlyUnlocked(ConductorProfile profile) => all
-      .where((achievement) =>
-          !profile.unlockedAchievements.contains(achievement.id) &&
-          achievement.isUnlockedBy(profile))
+      .where(
+        (achievement) =>
+            !profile.unlockedAchievements.contains(achievement.id) &&
+            achievement.isUnlockedBy(profile),
+      )
       .toList(growable: false);
 }

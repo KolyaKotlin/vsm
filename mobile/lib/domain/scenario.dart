@@ -197,8 +197,9 @@ class Choice {
       text: json['text'] as String,
       roleStep: RoleStep.parse(json['roleStep']),
       effects: ChoiceEffects.fromJson(json['effects'] as Map<String, Object?>?),
-      feedback:
-          ChoiceFeedback.fromJson(json['feedback'] as Map<String, Object?>?),
+      feedback: ChoiceFeedback.fromJson(
+        json['feedback'] as Map<String, Object?>?,
+      ),
       nextSceneId: json['next'] as String?,
       requirement: ChoiceRequirement.fromJson(
         json['requires'] as Map<String, Object?>?,
@@ -223,10 +224,12 @@ class TimeoutOutcome {
 
   factory TimeoutOutcome.fromJson(Map<String, Object?> json) {
     return TimeoutOutcome(
-      text: json['text'] as String? ?? 'Время вышло — ситуация развивается сама',
+      text:
+          json['text'] as String? ?? 'Время вышло — ситуация развивается сама',
       effects: ChoiceEffects.fromJson(json['effects'] as Map<String, Object?>?),
-      feedback:
-          ChoiceFeedback.fromJson(json['feedback'] as Map<String, Object?>?),
+      feedback: ChoiceFeedback.fromJson(
+        json['feedback'] as Map<String, Object?>?,
+      ),
       nextSceneId: json['next'] as String?,
     );
   }
@@ -320,7 +323,9 @@ class Scene {
       line: json['line'] as String? ?? '',
       narration: json['narration'] as String?,
       timerSeconds: (json['timerSeconds'] as num?)?.round(),
-      onTimeout: rawTimeout == null ? null : TimeoutOutcome.fromJson(rawTimeout),
+      onTimeout: rawTimeout == null
+          ? null
+          : TimeoutOutcome.fromJson(rawTimeout),
       choices: rawChoices
           .cast<Map<String, Object?>>()
           .map(Choice.fromJson)
@@ -351,17 +356,17 @@ class ScenarioContext {
   final String clock;
 
   String get carClassLabel => switch (carClass) {
-        'first' => 'Первый класс',
-        'business' => 'Бизнес-класс',
-        'comfort' => 'Комфорт-класс',
-        _ => 'Стандарт-класс',
-      };
+    'first' => 'Первый класс',
+    'business' => 'Бизнес-класс',
+    'comfort' => 'Комфорт-класс',
+    _ => 'Стандарт-класс',
+  };
 
   factory ScenarioContext.fromJson(Map<String, Object?>? json) {
     if (json == null) {
       return const ScenarioContext(
         route: 'Москва — Санкт-Петербург',
-        train: 'ВСМ-400',
+        train: 'ВСМ-001 · рейс 717',
         carClass: 'standard',
         phase: 'В пути',
         clock: '12:00',
@@ -369,7 +374,7 @@ class ScenarioContext {
     }
     return ScenarioContext(
       route: json['route'] as String? ?? 'Москва — Санкт-Петербург',
-      train: json['train'] as String? ?? 'ВСМ-400',
+      train: json['train'] as String? ?? 'ВСМ-001 · рейс 717',
       carClass: json['carClass'] as String? ?? 'standard',
       phase: json['phase'] as String? ?? 'В пути',
       clock: json['clock'] as String? ?? '12:00',

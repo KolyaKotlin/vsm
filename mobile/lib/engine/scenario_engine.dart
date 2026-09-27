@@ -94,9 +94,11 @@ class ScenarioResult {
   int get timeoutCount => decisions.where((d) => d.wasTimeout).length;
 
   int get mistakeCount => decisions
-      .where((d) =>
-          d.feedback.verdict == ChoiceVerdict.bad ||
-          d.feedback.verdict == ChoiceVerdict.critical)
+      .where(
+        (d) =>
+            d.feedback.verdict == ChoiceVerdict.bad ||
+            d.feedback.verdict == ChoiceVerdict.critical,
+      )
       .length;
 }
 
@@ -108,9 +110,9 @@ class ScenarioResult {
 /// UI, решает, чем закончится ситуация.
 class ScenarioEngine extends ChangeNotifier {
   ScenarioEngine({required this.scenario})
-      : _loyalty = scenario.initialLoyalty,
-        _safety = scenario.initialSafety,
-        _currentScene = scenario.startScene;
+    : _loyalty = scenario.initialLoyalty,
+      _safety = scenario.initialSafety,
+      _currentScene = scenario.startScene;
 
   final Scenario scenario;
 
@@ -141,11 +143,13 @@ class ScenarioEngine extends ChangeNotifier {
   /// Недоступные варианты не показываем вообще: проводник в реальности тоже не
   /// видит вариант «передать пассажира начальнику поезда», пока его не вызвал.
   List<Choice> get availableChoices => _currentScene.choices
-      .where((choice) => choice.requirement.isSatisfied(
-            activeFlags: _flags,
-            loyalty: _loyalty,
-            safety: _safety,
-          ))
+      .where(
+        (choice) => choice.requirement.isSatisfied(
+          activeFlags: _flags,
+          loyalty: _loyalty,
+          safety: _safety,
+        ),
+      )
       .toList(growable: false);
 
   /// Игрок выбрал вариант ответа.
@@ -242,7 +246,9 @@ class ScenarioEngine extends ChangeNotifier {
           (_competencyTotals[competency] ?? 0) + delta;
     });
 
-    final nextScene = nextSceneId == null ? null : scenario.sceneById(nextSceneId);
+    final nextScene = nextSceneId == null
+        ? null
+        : scenario.sceneById(nextSceneId);
     if (nextScene == null) {
       _finish(_currentScene.ending);
       return;
@@ -285,12 +291,12 @@ class ScenarioEngine extends ChangeNotifier {
   }
 
   ScenarioEnding _fallbackEnding(int score) => ScenarioEnding(
-        title: score >= 70 ? 'Ситуация разрешена' : 'Ситуация закрыта с потерями',
-        text: score >= 70
-            ? 'Пассажир остался в рамках сервисного диалога, безопасность не нарушена.'
-            : 'Формально ситуация завершена, но качество обслуживания пострадало.',
-        tone: score >= 70 ? 'success' : 'partial',
-      );
+    title: score >= 70 ? 'Ситуация разрешена' : 'Ситуация закрыта с потерями',
+    text: score >= 70
+        ? 'Пассажир остался в рамках сервисного диалога, безопасность не нарушена.'
+        : 'Формально ситуация завершена, но качество обслуживания пострадало.',
+    tone: score >= 70 ? 'success' : 'partial',
+  );
 
   /// Ищет в текущей сцене вариант с вердиктом «верно», который игрок не выбрал.
   String? _bestAlternativeTo(Choice? chosen) {

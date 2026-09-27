@@ -1,6 +1,6 @@
 {
-    "name": "vsm_academy",
-    "short_name": "vsm_academy",
+    "name": "ВСМ",
+    "short_name": "ВСМ",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

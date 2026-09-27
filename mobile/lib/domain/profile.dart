@@ -15,6 +15,9 @@ class RunSummary {
     required this.mistakeCount,
     required this.timeoutCount,
     required this.finishedAt,
+    this.confirmed = false,
+    this.category = '',
+    this.roleCycleClosed = false,
   });
 
   final String scenarioId;
@@ -27,35 +30,61 @@ class RunSummary {
   final int timeoutCount;
   final DateTime finishedAt;
 
+  /// Неподтверждённые очки сгорают для рейтинга, если за окно не было новой смены.
+  final bool confirmed;
+  final String category;
+  final bool roleCycleClosed;
+
+  RunSummary confirm() => RunSummary(
+    scenarioId: scenarioId,
+    scenarioTitle: scenarioTitle,
+    loyalty: loyalty,
+    safety: safety,
+    xp: xp,
+    competencyDelta: competencyDelta,
+    mistakeCount: mistakeCount,
+    timeoutCount: timeoutCount,
+    finishedAt: finishedAt,
+    confirmed: true,
+    category: category,
+    roleCycleClosed: roleCycleClosed,
+  );
+
   int get score => ((loyalty + safety) / 2).round();
 
   Map<String, Object?> toJson() => {
-        'scenarioId': scenarioId,
-        'scenarioTitle': scenarioTitle,
-        'loyalty': loyalty,
-        'safety': safety,
-        'xp': xp,
-        'competencyDelta': {
-          for (final entry in competencyDelta.entries) entry.key.id: entry.value,
-        },
-        'mistakeCount': mistakeCount,
-        'timeoutCount': timeoutCount,
-        'finishedAt': finishedAt.toIso8601String(),
-      };
+    'scenarioId': scenarioId,
+    'scenarioTitle': scenarioTitle,
+    'loyalty': loyalty,
+    'safety': safety,
+    'xp': xp,
+    'competencyDelta': {
+      for (final entry in competencyDelta.entries) entry.key.id: entry.value,
+    },
+    'mistakeCount': mistakeCount,
+    'timeoutCount': timeoutCount,
+    'finishedAt': finishedAt.toIso8601String(),
+    'confirmed': confirmed,
+    'category': category,
+    'roleCycleClosed': roleCycleClosed,
+  };
 
   factory RunSummary.fromJson(Map<String, Object?> json) => RunSummary(
-        scenarioId: json['scenarioId'] as String,
-        scenarioTitle: json['scenarioTitle'] as String? ?? '',
-        loyalty: (json['loyalty'] as num?)?.round() ?? 0,
-        safety: (json['safety'] as num?)?.round() ?? 0,
-        xp: (json['xp'] as num?)?.round() ?? 0,
-        competencyDelta: Competency.parseMap(json['competencyDelta']),
-        mistakeCount: (json['mistakeCount'] as num?)?.round() ?? 0,
-        timeoutCount: (json['timeoutCount'] as num?)?.round() ?? 0,
-        finishedAt:
-            DateTime.tryParse(json['finishedAt'] as String? ?? '') ??
-                DateTime.now(),
-      );
+    scenarioId: json['scenarioId'] as String,
+    scenarioTitle: json['scenarioTitle'] as String? ?? '',
+    loyalty: (json['loyalty'] as num?)?.round() ?? 0,
+    safety: (json['safety'] as num?)?.round() ?? 0,
+    xp: (json['xp'] as num?)?.round() ?? 0,
+    competencyDelta: Competency.parseMap(json['competencyDelta']),
+    mistakeCount: (json['mistakeCount'] as num?)?.round() ?? 0,
+    timeoutCount: (json['timeoutCount'] as num?)?.round() ?? 0,
+    finishedAt:
+        DateTime.tryParse(json['finishedAt'] as String? ?? '') ??
+        DateTime.now(),
+    confirmed: json['confirmed'] as bool? ?? true,
+    category: json['category'] as String? ?? '',
+    roleCycleClosed: json['roleCycleClosed'] as bool? ?? false,
+  );
 }
 
 /// Игровой профиль проводника.
@@ -71,6 +100,7 @@ class ConductorProfile {
     required this.runs,
     required this.unlockedAchievements,
     required this.seenNotificationIds,
+    this.created = false,
   });
 
   final String name;
@@ -83,18 +113,41 @@ class ConductorProfile {
   final Set<String> unlockedAchievements;
   final Set<String> seenNotificationIds;
 
-  factory ConductorProfile.initial() => const ConductorProfile(
-        name: 'Проводник А. Смирнов',
-        brigade: 'Бригада №4',
-        depot: 'Депо Москва-Октябрьская',
-        competencyPoints: {},
-        runs: [],
-        unlockedAchievements: {},
-        seenNotificationIds: {},
-      );
+  /// Профиль ещё не создан проводником — показываем экран регистрации.
+  final bool created;
 
-  /// Суммарный опыт — просто сумма XP за все прохождения.
+  /// Окно, после которого неподтверждённые очки выпадают из рейтинга.
+  static const pendingWindow = Duration(days: 3);
+
+  factory ConductorProfile.initial() => const ConductorProfile(
+    name: 'Проводник А. Смирнов',
+    brigade: 'Бригада №4',
+    depot: 'Депо Москва-Октябрьская',
+    competencyPoints: {},
+    runs: [],
+    unlockedAchievements: {},
+    seenNotificationIds: {},
+  );
+
+  /// Весь набранный опыт, включая сгоревший. От него считается уровень.
   int get totalXp => runs.fold(0, (sum, run) => sum + run.xp);
+
+  bool countsInRating(RunSummary run) {
+    if (run.confirmed) return true;
+    return DateTime.now().difference(run.finishedAt) < pendingWindow;
+  }
+
+  /// Очки, которые идут в таблицу лидеров.
+  int get ratedXp =>
+      runs.where(countsInRating).fold(0, (sum, run) => sum + run.xp);
+
+  int get pendingXp => runs
+      .where((run) => !run.confirmed && countsInRating(run))
+      .fold(0, (sum, run) => sum + run.xp);
+
+  int get expiredXp => runs
+      .where((run) => !run.confirmed && !countsInRating(run))
+      .fold(0, (sum, run) => sum + run.xp);
 
   /// Каждые [xpPerLevel] очков опыта — новый уровень. Формула намеренно
   /// линейная: её видно в интерфейсе, и жюри может проверить арифметику.
@@ -105,13 +158,13 @@ class ConductorProfile {
   double get levelProgress => xpIntoLevel / xpPerLevel;
 
   String get rank => switch (level) {
-        1 => 'Стажёр',
-        2 => 'Проводник',
-        3 => 'Проводник 1 категории',
-        4 => 'Старший проводник',
-        5 => 'Инструктор бригады',
-        _ => 'Наставник ВСМ',
-      };
+    1 => 'Стажёр',
+    2 => 'Проводник',
+    3 => 'Проводник 1 категории',
+    4 => 'Старший проводник',
+    5 => 'Инструктор бригады',
+    _ => 'Наставник ВСМ',
+  };
 
   int get completedCount => runs.length;
 
@@ -154,28 +207,30 @@ class ConductorProfile {
     List<RunSummary>? runs,
     Set<String>? unlockedAchievements,
     Set<String>? seenNotificationIds,
-  }) =>
-      ConductorProfile(
-        name: name ?? this.name,
-        brigade: brigade ?? this.brigade,
-        depot: depot ?? this.depot,
-        competencyPoints: competencyPoints ?? this.competencyPoints,
-        runs: runs ?? this.runs,
-        unlockedAchievements: unlockedAchievements ?? this.unlockedAchievements,
-        seenNotificationIds: seenNotificationIds ?? this.seenNotificationIds,
-      );
+    bool? created,
+  }) => ConductorProfile(
+    name: name ?? this.name,
+    brigade: brigade ?? this.brigade,
+    depot: depot ?? this.depot,
+    competencyPoints: competencyPoints ?? this.competencyPoints,
+    runs: runs ?? this.runs,
+    unlockedAchievements: unlockedAchievements ?? this.unlockedAchievements,
+    seenNotificationIds: seenNotificationIds ?? this.seenNotificationIds,
+    created: created ?? this.created,
+  );
 
   Map<String, Object?> toJson() => {
-        'name': name,
-        'brigade': brigade,
-        'depot': depot,
-        'competencyPoints': {
-          for (final entry in competencyPoints.entries) entry.key.id: entry.value,
-        },
-        'runs': runs.map((run) => run.toJson()).toList(),
-        'unlockedAchievements': unlockedAchievements.toList(),
-        'seenNotificationIds': seenNotificationIds.toList(),
-      };
+    'name': name,
+    'brigade': brigade,
+    'depot': depot,
+    'competencyPoints': {
+      for (final entry in competencyPoints.entries) entry.key.id: entry.value,
+    },
+    'runs': runs.map((run) => run.toJson()).toList(),
+    'unlockedAchievements': unlockedAchievements.toList(),
+    'seenNotificationIds': seenNotificationIds.toList(),
+    'created': created,
+  };
 
   factory ConductorProfile.fromJson(Map<String, Object?> json) =>
       ConductorProfile(
@@ -195,5 +250,6 @@ class ConductorProfile {
             (json['seenNotificationIds'] as List<Object?>? ?? const [])
                 .map((e) => '$e')
                 .toSet(),
+        created: json['created'] as bool? ?? true,
       );
 }

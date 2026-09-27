@@ -72,14 +72,17 @@ class NotificationCenter {
     // 1. Непройденные сценарии.
     for (final scenario in scenarios) {
       if (completed.contains(scenario.id)) continue;
-      notifications.add(AppNotification(
-        id: 'new_scenario_${scenario.id}',
-        kind: NotificationKind.newScenario,
-        title: scenario.title,
-        body: '${scenario.category.label} · сложность ${scenario.difficulty} '
-            '· ${scenario.summary}',
-        scenarioId: scenario.id,
-      ));
+      notifications.add(
+        AppNotification(
+          id: 'new_scenario_${scenario.id}',
+          kind: NotificationKind.newScenario,
+          title: scenario.title,
+          body:
+              '${scenario.category.label} · сложность ${scenario.difficulty} '
+              '· ${scenario.summary}',
+          scenarioId: scenario.id,
+        ),
+      );
     }
 
     // 2. Челлендж: закрыть сложный сценарий на высокий результат.
@@ -88,33 +91,52 @@ class NotificationCenter {
         .cast<Scenario?>()
         .firstWhere(
           (s) => (profile.runs
-                  .where((run) => run.scenarioId == s!.id && run.score >= 80)
-                  .isEmpty),
+              .where((run) => run.scenarioId == s!.id && run.score >= 80)
+              .isEmpty),
           orElse: () => null,
         );
     if (hardScenario != null) {
-      notifications.add(AppNotification(
-        id: 'challenge_${hardScenario.id}',
-        kind: NotificationKind.challenge,
-        title: 'Челлендж недели',
-        body: 'Закройте «${hardScenario.title}» с итогом 80+ '
-            'и получите двойной опыт.',
-        scenarioId: hardScenario.id,
-        deadline: DateTime.now().add(const Duration(days: 4)),
-      ));
+      notifications.add(
+        AppNotification(
+          id: 'challenge_${hardScenario.id}',
+          kind: NotificationKind.challenge,
+          title: 'Челлендж недели',
+          body:
+              'Закройте «${hardScenario.title}» с итогом 80+ '
+              'и получите двойной опыт.',
+          scenarioId: hardScenario.id,
+          deadline: DateTime.now().add(const Duration(days: 4)),
+        ),
+      );
     }
 
     // 3. Сгорающие баллы: опыт, набранный недавно и не закреплённый.
     final pending = _pendingXp(profile);
     if (pending > 0) {
-      notifications.add(AppNotification(
-        id: 'expiring_$pending',
-        kind: NotificationKind.expiringPoints,
-        title: '$pending очков ждут подтверждения',
-        body: 'Пройдите любой сценарий, чтобы закрепить баллы за предыдущую '
-            'смену. Иначе они не попадут в рейтинг бригады.',
-        deadline: _pendingDeadline(profile),
-      ));
+      notifications.add(
+        AppNotification(
+          id: 'expiring_$pending',
+          kind: NotificationKind.expiringPoints,
+          title: '$pending очков ждут подтверждения',
+          body:
+              'Пройдите любой сценарий в ближайшие трое суток, чтобы закрепить '
+              'баллы. Иначе они сгорят и пропадут из рейтинга бригады.',
+          deadline: _pendingDeadline(profile),
+        ),
+      );
+    }
+
+    if (profile.expiredXp > 0) {
+      notifications.add(
+        AppNotification(
+          id: 'burned_${profile.expiredXp}',
+          kind: NotificationKind.expiringPoints,
+          title: '${profile.expiredXp} очков сгорели',
+          body:
+              'Их не закрепили новой сменой. В рейтинг бригады они больше '
+              'не входят, уровень при этом сохраняется.',
+        ),
+      );
     }
 
     // 4. Проседающая компетенция.
@@ -124,15 +146,17 @@ class NotificationCenter {
           .where((s) => s.trainedCompetencies.contains(gap))
           .cast<Scenario?>()
           .firstWhere((_) => true, orElse: () => null);
-      notifications.add(AppNotification(
-        id: 'gap_${gap.id}',
-        kind: NotificationKind.competencyGap,
-        title: 'Компетенция «${gap.label}» отстаёт',
-        body: scenario == null
-            ? 'По этой компетенции у вас меньше всего очков.'
-            : 'Подтяните её на сценарии «${scenario.title}».',
-        scenarioId: scenario?.id,
-      ));
+      notifications.add(
+        AppNotification(
+          id: 'gap_${gap.id}',
+          kind: NotificationKind.competencyGap,
+          title: 'Компетенция «${gap.label}» отстаёт',
+          body: scenario == null
+              ? 'По этой компетенции у вас меньше всего очков.'
+              : 'Подтяните её на сценарии «${scenario.title}».',
+          scenarioId: scenario?.id,
+        ),
+      );
     }
 
     // 5. Ачивка, до которой остался один шаг.
@@ -141,24 +165,21 @@ class NotificationCenter {
         .cast<Achievement?>()
         .firstWhere((_) => true, orElse: () => null);
     if (nextAchievement != null && profile.completedCount > 0) {
-      notifications.add(AppNotification(
-        id: 'achievement_${nextAchievement.id}',
-        kind: NotificationKind.achievement,
-        title: 'Достижение рядом: «${nextAchievement.title}»',
-        body: nextAchievement.description,
-      ));
+      notifications.add(
+        AppNotification(
+          id: 'achievement_${nextAchievement.id}',
+          kind: NotificationKind.achievement,
+          title: 'Достижение рядом: «${nextAchievement.title}»',
+          body: nextAchievement.description,
+        ),
+      );
     }
 
     return notifications;
   }
 
-  /// Опыт за прохождения внутри окна подтверждения.
-  int _pendingXp(ConductorProfile profile) {
-    final threshold = DateTime.now().subtract(pendingPointsWindow);
-    return profile.runs
-        .where((run) => run.finishedAt.isAfter(threshold))
-        .fold(0, (sum, run) => sum + run.xp);
-  }
+  /// Опыт, который ещё не закреплён следующей сменой.
+  int _pendingXp(ConductorProfile profile) => profile.pendingXp;
 
   DateTime? _pendingDeadline(ConductorProfile profile) {
     final threshold = DateTime.now().subtract(pendingPointsWindow);

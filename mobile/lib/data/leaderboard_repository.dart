@@ -44,16 +44,19 @@ class LeaderboardRepository {
   Future<List<LeaderboardEntry>> loadColleagues() async {
     final raw = await rootBundle.loadString('assets/data/leaderboard.json');
     final json = jsonDecode(raw) as Map<String, Object?>;
-    final entries = (json['entries'] as List<Object?>).cast<Map<String, Object?>>();
+    final entries = (json['entries'] as List<Object?>)
+        .cast<Map<String, Object?>>();
 
     return entries
-        .map((entry) => LeaderboardEntry(
-              name: entry['name'] as String,
-              brigade: entry['brigade'] as String,
-              depot: entry['depot'] as String,
-              xp: (entry['xp'] as num).round(),
-              averageScore: (entry['averageScore'] as num).round(),
-            ))
+        .map(
+          (entry) => LeaderboardEntry(
+            name: entry['name'] as String,
+            brigade: entry['brigade'] as String,
+            depot: entry['depot'] as String,
+            xp: (entry['xp'] as num).round(),
+            averageScore: (entry['averageScore'] as num).round(),
+          ),
+        )
         .toList(growable: false);
   }
 

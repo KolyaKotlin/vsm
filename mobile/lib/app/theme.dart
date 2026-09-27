@@ -1,55 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Палитра приложения.
+/// Палитра «та ВСМ: кремовые панели, дерево столика, красная ливрея.
 ///
-/// Тёмная тема выбрана осознанно: тренажёр запускают в депо и в поезде,
-/// часто при слабом освещении, а красный акцент РЖД на тёмном фоне читается
-/// лучше, чем на светлом.
+/// Ориентир — интерьер вагона из датасета и фирменный красный РЖД,
+/// а не тёмный «кибер»-интерфейс.
 abstract final class VsmColors {
-  static const background = Color(0xFF080D1A);
-  static const surface = Color(0xFF121A2E);
-  static const surfaceHigh = Color(0xFF1B2540);
-  static const stroke = Color(0xFF263252);
+  static const background = Color(0xFFEDE6D9);
+  static const surface = Color(0xFFFFFBF4);
+  static const surfaceHigh = Color(0xFFF4EBE0);
+  static const stroke = Color(0xFFD5C6B0);
 
-  /// Фирменный красный РЖД — основной акцент и цвет действия.
-  static const brand = Color(0xFFE4222B);
-  static const brandDim = Color(0xFF8E1520);
+  /// Красная полоса ливреи ВСМ / РЖД.
+  static const brand = Color(0xFFC8102E);
+  static const brandDim = Color(0xFF8E1022);
 
-  /// Шкала «лояльность пассажира».
-  static const loyalty = Color(0xFFFFB020);
+  /// Латунь табличек и поручней.
+  static const brass = Color(0xFF9A7B4F);
 
-  /// Шкала «рейтинг безопасности».
-  static const safety = Color(0xFF21C7A8);
+  /// Шкала «лояльность пассажира» — тёплый свет салона.
+  static const loyalty = Color(0xFFC4841D);
 
-  static const textPrimary = Color(0xFFF2F5FA);
-  static const textSecondary = Color(0xFF8D9AB8);
-  static const textMuted = Color(0xFF5C688B);
+  /// Шкала «рейтинг безопасности» — зелёный сигнал.
+  static const safety = Color(0xFF1F7A5C);
 
-  static const danger = Color(0xFFFF4D5E);
-  static const success = Color(0xFF21C7A8);
-  static const warning = Color(0xFFFFB020);
+  static const textPrimary = Color(0xFF1A1F2C);
+  static const textSecondary = Color(0xFF5C564C);
+  static const textMuted = Color(0xFF8A8175);
+
+  static const danger = Color(0xFFB42318);
+  static const success = Color(0xFF1F7A5C);
+  static const warning = Color(0xFFC4841D);
+
+  /// Тёмная шапка табло / ливреи.
+  static const livery = Color(0xFF1C2433);
 }
 
-/// Единые радиусы и отступы, чтобы экраны не разъезжались по стилю.
 abstract final class VsmSpacing {
-  static const cardRadius = 20.0;
-  static const chipRadius = 12.0;
+  static const cardRadius = 12.0;
+  static const chipRadius = 8.0;
   static const screenPadding = 20.0;
 }
 
-/// Градиенты вынесены в тему, а не разбросаны по виджетам:
-/// поменять «фирменный вид» приложения можно в одном месте.
 abstract final class VsmGradients {
   static const brand = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFE4222B), Color(0xFF8E1520)],
+    colors: [Color(0xFFC8102E), Color(0xFF8E1022)],
   );
 
-  static const speed = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF1B2540), Color(0xFF0D1426)],
+  static const livery = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF2A3344), Color(0xFF1C2433)],
+  );
+
+  static const cabin = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFF7F1E6), Color(0xFFEDE6D9)],
   );
 
   static const glass = LinearGradient(
@@ -57,14 +67,17 @@ abstract final class VsmGradients {
     end: Alignment.bottomRight,
     colors: [Color(0x14FFFFFF), Color(0x05FFFFFF)],
   );
+
+  /// Старое имя, чтобы карточки без явного градиента не ломались.
+  static const speed = cabin;
 }
 
 ThemeData buildVsmTheme() {
-  const scheme = ColorScheme.dark(
+  const scheme = ColorScheme.light(
     primary: VsmColors.brand,
     onPrimary: Colors.white,
-    secondary: VsmColors.safety,
-    onSecondary: Color(0xFF00201A),
+    secondary: VsmColors.brass,
+    onSecondary: Colors.white,
     surface: VsmColors.surface,
     onSurface: VsmColors.textPrimary,
     error: VsmColors.danger,
@@ -72,61 +85,65 @@ ThemeData buildVsmTheme() {
   );
 
   final base = ThemeData.from(colorScheme: scheme, useMaterial3: true);
+  final sans = GoogleFonts.ptSans;
+  final serif = GoogleFonts.ptSerif;
+  final textTheme = GoogleFonts.ptSansTextTheme(base.textTheme)
+      .apply(
+        bodyColor: VsmColors.textPrimary,
+        displayColor: VsmColors.textPrimary,
+      )
+      .copyWith(
+        displaySmall: serif(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          height: 1.15,
+          color: VsmColors.textPrimary,
+        ),
+        headlineSmall: serif(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          height: 1.2,
+          color: VsmColors.textPrimary,
+        ),
+        titleMedium: sans(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          height: 1.25,
+          color: VsmColors.textPrimary,
+        ),
+        bodyMedium: sans(
+          fontSize: 15,
+          height: 1.45,
+          color: VsmColors.textPrimary,
+        ),
+        bodySmall: sans(
+          fontSize: 13,
+          height: 1.4,
+          color: VsmColors.textSecondary,
+        ),
+        labelSmall: sans(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: VsmColors.textMuted,
+        ),
+      );
 
   return base.copyWith(
     scaffoldBackgroundColor: VsmColors.background,
-    splashFactory: InkSparkle.splashFactory,
-    textTheme: base.textTheme
-        .apply(
-          bodyColor: VsmColors.textPrimary,
-          displayColor: VsmColors.textPrimary,
-        )
-        .copyWith(
-          displaySmall: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.8,
-            color: VsmColors.textPrimary,
-          ),
-          headlineSmall: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.4,
-            color: VsmColors.textPrimary,
-          ),
-          titleMedium: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: VsmColors.textPrimary,
-          ),
-          bodyMedium: const TextStyle(
-            fontSize: 14,
-            height: 1.45,
-            color: VsmColors.textPrimary,
-          ),
-          bodySmall: const TextStyle(
-            fontSize: 12.5,
-            height: 1.4,
-            color: VsmColors.textSecondary,
-          ),
-          labelSmall: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-            color: VsmColors.textMuted,
-          ),
-        ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+    splashFactory: InkRipple.splashFactory,
+    textTheme: textTheme,
+    appBarTheme: AppBarTheme(
+      backgroundColor: VsmColors.background,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      titleTextStyle: sans(
         fontSize: 18,
         fontWeight: FontWeight.w700,
         color: VsmColors.textPrimary,
       ),
-      iconTheme: IconThemeData(color: VsmColors.textPrimary),
+      iconTheme: const IconThemeData(color: VsmColors.textPrimary),
     ),
     cardTheme: CardThemeData(
       color: VsmColors.surface,
@@ -142,8 +159,8 @@ ThemeData buildVsmTheme() {
         backgroundColor: VsmColors.brand,
         foregroundColor: Colors.white,
         minimumSize: const Size.fromHeight(52),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: sans(fontSize: 15, fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -151,24 +168,59 @@ ThemeData buildVsmTheme() {
         foregroundColor: VsmColors.textPrimary,
         minimumSize: const Size.fromHeight(52),
         side: const BorderSide(color: VsmColors.stroke),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: sans(fontSize: 15, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: VsmColors.brandDim,
+        textStyle: sans(fontSize: 15, fontWeight: FontWeight.w700),
+      ),
+    ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: VsmColors.surface,
-      indicatorColor: VsmColors.brand.withValues(alpha: 0.18),
+      indicatorColor: VsmColors.brand.withValues(alpha: 0.12),
       surfaceTintColor: Colors.transparent,
-      height: 68,
-      labelTextStyle: const WidgetStatePropertyAll(
-        TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+      height: 70,
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return sans(
+          fontSize: 12,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: selected ? VsmColors.brand : VsmColors.textMuted,
+        );
+      }),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return IconThemeData(
+          color: selected ? VsmColors.brand : VsmColors.textMuted,
+        );
+      }),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: VsmColors.surfaceHigh,
+      labelStyle: const TextStyle(color: VsmColors.textSecondary),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: const BorderSide(color: VsmColors.stroke),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: const BorderSide(color: VsmColors.brand),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: VsmColors.surfaceHigh,
-      contentTextStyle: const TextStyle(color: VsmColors.textPrimary),
+      backgroundColor: VsmColors.livery,
+      contentTextStyle: const TextStyle(color: Colors.white),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
     ),
   );
 }

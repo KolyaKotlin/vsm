@@ -23,11 +23,12 @@ class AppState extends ChangeNotifier {
     ProfileStore? profileStore,
     LeaderboardRepository? leaderboardRepository,
     NotificationCenter? notificationCenter,
-  })  : _scenarioRepository = scenarioRepository ?? const AssetScenarioRepository(),
-        _profileStore = profileStore ?? ProfileStore(),
-        _leaderboardRepository =
-            leaderboardRepository ?? const LeaderboardRepository(),
-        _notificationCenter = notificationCenter ?? const NotificationCenter();
+  }) : _scenarioRepository =
+           scenarioRepository ?? const AssetScenarioRepository(),
+       _profileStore = profileStore ?? ProfileStore(),
+       _leaderboardRepository =
+           leaderboardRepository ?? const LeaderboardRepository(),
+       _notificationCenter = notificationCenter ?? const NotificationCenter();
 
   final ScenarioRepository _scenarioRepository;
   final ProfileStore _profileStore;
@@ -84,17 +85,29 @@ class AppState extends ChangeNotifier {
 
   /// Записывает итог прохождения в профиль и возвращает ачивки, которые
   /// открылись именно этим прохождением, — их показывает экран разбора.
-  Future<List<Achievement>> commitResult(ScenarioResult result) async {
+  Future<CommitOutcome> commitResult(ScenarioResult result) async {
+    final challengeDoubled =
+        _profile.runs
+            .where(
+              (run) => run.scenarioId == result.scenario.id && run.score >= 80,
+            )
+            .isEmpty &&
+        result.scenario.difficulty >= 3 &&
+        result.score >= 80;
+    final awardedXp = challengeDoubled ? result.xp * 2 : result.xp;
+
     final summary = RunSummary(
       scenarioId: result.scenario.id,
       scenarioTitle: result.scenario.title,
       loyalty: result.loyalty,
       safety: result.safety,
-      xp: result.xp,
+      xp: awardedXp,
       competencyDelta: result.competencyTotals,
       mistakeCount: result.mistakeCount,
       timeoutCount: result.timeoutCount,
       finishedAt: result.finishedAt,
+      category: result.scenario.category.id,
+      roleCycleClosed: RoleStep.canonicalOrder.every(result.roleTrack.contains),
     );
 
     final competencyPoints = Map.of(_profile.competencyPoints);
@@ -105,8 +118,9 @@ class AppState extends ChangeNotifier {
           ((competencyPoints[competency] ?? 0) + delta).clamp(0, 9999);
     });
 
+    final secured = _profile.runs.map((run) => run.confirm()).toList();
     _profile = _profile.copyWith(
-      runs: [..._profile.runs, summary],
+      runs: [...secured, summary],
       competencyPoints: competencyPoints,
     );
 
@@ -123,7 +137,27 @@ class AppState extends ChangeNotifier {
     _rebuildNotifications();
     await _profileStore.save(_profile);
     notifyListeners();
-    return unlocked;
+    return CommitOutcome(
+      unlocked: unlocked,
+      awardedXp: awardedXp,
+      challengeDoubled: challengeDoubled,
+    );
+  }
+
+  Future<void> createProfile({
+    required String name,
+    required String brigade,
+    required String depot,
+  }) async {
+    _profile = ConductorProfile.initial().copyWith(
+      name: name,
+      brigade: brigade,
+      depot: depot,
+      created: true,
+    );
+    _rebuildNotifications();
+    await _profileStore.save(_profile);
+    notifyListeners();
   }
 
   Future<void> markNotificationsSeen() async {
@@ -160,7 +194,7 @@ class AppState extends ChangeNotifier {
       name: _profile.name,
       brigade: _profile.brigade,
       depot: _profile.depot,
-      xp: _profile.totalXp,
+      xp: _profile.ratedXp,
       averageScore: _profile.averageScore,
       isCurrentUser: true,
     );
@@ -193,13 +227,25 @@ class AppState extends ChangeNotifier {
   }
 }
 
+class CommitOutcome {
+  const CommitOutcome({
+    required this.unlocked,
+    required this.awardedXp,
+    required this.challengeDoubled,
+  });
+
+  final List<Achievement> unlocked;
+  final int awardedXp;
+  final bool challengeDoubled;
+}
+
 /// Пробрасывает [AppState] по дереву виджетов.
 ///
 /// [InheritedNotifier] встроен во Flutter и делает ровно то, что нужно:
 /// перестраивает подписчиков при `notifyListeners()`.
 class AppScope extends InheritedNotifier<AppState> {
   const AppScope({super.key, required AppState state, required super.child})
-      : super(notifier: state);
+    : super(notifier: state);
 
   static AppState of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();

@@ -16,7 +16,8 @@ class RoleStepJudgement {
   /// Пояснение для экрана разбора. `null` — замечаний нет.
   final String? note;
 
-  bool get isEmpty => loyaltyDelta == 0 && competencyDelta.isEmpty && note == null;
+  bool get isEmpty =>
+      loyaltyDelta == 0 && competencyDelta.isEmpty && note == null;
 }
 
 /// Правила основной ролевой модели РЖД.
@@ -51,7 +52,8 @@ abstract final class RoleModel {
       return const RoleStepJudgement(
         loyaltyDelta: _ruleBeforeAcknowledgePenalty,
         competencyDelta: {Competency.empathy: -2},
-        note: 'Правило озвучено до того, как ситуация признана. Пассажир '
+        note:
+            'Правило озвучено до того, как ситуация признана. Пассажир '
             'услышал выговор вместо помощи — по ролевой модели сначала идёт '
             '«Я Вас понимаю…», и только потом «Обращаю Ваше внимание…».',
       );
@@ -61,7 +63,8 @@ abstract final class RoleModel {
       return const RoleStepJudgement(
         loyaltyDelta: _solutionBeforeAcknowledgePenalty,
         competencyDelta: {Competency.empathy: -1},
-        note: 'Решение предложено без признания ситуации. Технически верно, но '
+        note:
+            'Решение предложено без признания ситуации. Технически верно, но '
             'пассажир не почувствовал, что его услышали.',
       );
     }
@@ -69,7 +72,8 @@ abstract final class RoleModel {
     if (step == RoleStep.assure && previousSteps.isEmpty) {
       return const RoleStepJudgement(
         loyaltyDelta: -3,
-        note: 'Благодарность за понимание до того, как что-то сделано, звучит '
+        note:
+            'Благодарность за понимание до того, как что-то сделано, звучит '
             'формально.',
       );
     }
@@ -87,13 +91,15 @@ abstract final class RoleModel {
       return const RoleStepJudgement(
         loyaltyDelta: _fullCycleBonus,
         competencyDelta: {Competency.communication: 3},
-        note: 'Полный цикл ролевой модели: ситуация признана, правило '
+        note:
+            'Полный цикл ролевой модели: ситуация признана, правило '
             'обозначено, решение предложено, пассажир заверен.',
       );
     }
 
     return RoleStepJudgement(
-      note: 'Цикл ролевой модели не закрыт. Не хватило шагов: '
+      note:
+          'Цикл ролевой модели не закрыт. Не хватило шагов: '
           '${missing.map((s) => s.label.toLowerCase()).join(', ')}.',
     );
   }

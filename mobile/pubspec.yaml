@@ -14,6 +14,7 @@ dependencies:
   # Локальное хранение профиля и истории прохождений.
   # Пока бэкенда нет, это единственный источник правды по прогрессу.
   shared_preferences: ^2.3.3
+  google_fonts: ^8.2.1
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +27,5 @@ flutter:
   assets:
     - assets/scenarios/
     - assets/data/
+    - assets/logo.jpg
+    - assets/logo_mark.png
