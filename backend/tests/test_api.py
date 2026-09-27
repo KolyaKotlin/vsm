@@ -153,6 +153,75 @@ def test_invalid_option_returns_400(client: TestClient, trainee_id: int) -> None
     assert "не найден" in response.json()["detail"]
 
 
+def test_connection_is_usable_from_the_request_thread(client: TestClient) -> None:
+    """Соединение создаётся в одном потоке, а запрос FastAPI выполняет в другом."""
+    import threading
+
+    from app.db import connect
+
+    connection = connect()
+    errors: list[BaseException] = []
+
+    def read() -> None:
+        try:
+            connection.execute("SELECT COUNT(*) FROM employees").fetchone()
+        except BaseException as error:  # noqa: BLE001 — тест как раз ловит чужое исключение
+            errors.append(error)
+
+    worker = threading.Thread(target=read)
+    worker.start()
+    worker.join()
+    connection.close()
+    assert errors == []
+
+
+def test_admin_issues_a_conductor_code_and_builds_a_situation(client: TestClient, tmp_path, monkeypatch) -> None:
+    denied = client.post("/api/admin/employees", json={"display_name": "Тестов Тест Тестович (демо)"})
+    assert denied.status_code == 401
+
+    created = client.post(
+        "/api/admin/employees",
+        json={"display_name": "Тестов Тест Тестович (демо)", "brigade": "Бригада 9"},
+        headers={"X-Admin-Code": "mentor"},
+    )
+    assert created.status_code == 200, created.text
+    code = created.json()["access_code"]
+    opened = client.post("/api/access", json={"code": code})
+    assert opened.status_code == 200
+    assert "Тестов" in opened.json()["display_name"]
+
+    from app import scenarios as scenario_files
+    from app import service
+    from app.studio import build_scenario_document
+
+    document = build_scenario_document(
+        {
+            "title": "Пассажир просит плед",
+            "summary": "Плед есть, но пассажир хочет его бесплатно и уже тянет с тележки.",
+            "section": "Добавленные",
+            "car": "Вагон 2",
+            "service_class": "стандарт",
+            "primary_competency": "service",
+            "scene": "У тележки пассажир снимает плед и говорит, что это входит в билет.",
+            "passenger": "«Дайте плед, я не буду за него платить.»",
+            "rule": "плед выдаётся за доплату, цену называют до того, как его отдать",
+            "refusal": "«Забирайте так, цену я придумаю потом.»",
+            "critical": False,
+        },
+        90,
+    )
+    monkeypatch.setattr(scenario_files, "SCENARIOS_DIR", tmp_path)
+    (tmp_path / "90_custom.json").write_text(
+        __import__("json").dumps(document, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    service.reload_catalog()
+    assert any(item.title == "Пассажир просит плед" for item in service.scenario_list())
+    mobile = client.get("/api/mobile/scenarios")
+    assert mobile.status_code == 200
+    assert any(item["title"] == "Пассажир просит плед" for item in mobile.json())
+
+
 def test_access_code_opens_named_profile_and_rejects_unknown(client: TestClient) -> None:
     opened = client.post("/api/access", json={"code": "2401"})
     assert opened.status_code == 200

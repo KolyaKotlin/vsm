@@ -3,6 +3,8 @@ import { api } from './api.js'
 import Analytics from './components/Analytics.jsx'
 import Leaderboard from './components/Leaderboard.jsx'
 import Notifications from './components/Notifications.jsx'
+import Admin from './components/Admin.jsx'
+import Confirm from './components/Confirm.jsx'
 import Login from './components/Login.jsx'
 import PlayScreen from './components/PlayScreen.jsx'
 import Profile from './components/Profile.jsx'
@@ -37,6 +39,8 @@ export default function App() {
   // должны перечитаться, иначе игрок не увидит начисленные очки.
   const [refreshKey, setRefreshKey] = useState(0)
   const [unread, setUnread] = useState(0)
+  const [confirm, setConfirm] = useState(null)
+  const [desk, setDesk] = useState(false)
 
   const employeeId = employee?.id ?? null
 
@@ -52,6 +56,19 @@ export default function App() {
     sessionStorage.removeItem(SESSION_KEY)
     setEmployee(null)
     setAttempt(null)
+    setConfirm(null)
+  }
+
+  const requestLogout = () => {
+    setConfirm({
+      title: 'Выйти из профиля?',
+      text:
+        attempt && !attempt.finished
+          ? 'Незакрытая ситуация прервётся. Чтобы вернуться, снова введите код доступа.'
+          : 'Чтобы вернуться, снова введите код доступа.',
+      confirmLabel: 'Выйти',
+      onConfirm: leaveAccount,
+    })
   }
 
   useEffect(() => {
@@ -63,6 +80,16 @@ export default function App() {
       // обнулять его нельзя: это выдумало бы «уведомлений нет».
       .catch((problem) => console.warn('Не удалось обновить счётчик уведомлений', problem))
   }, [employeeId, refreshKey])
+
+  useEffect(() => {
+    if (!attempt || attempt.finished) return undefined
+    const warn = (event) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [attempt])
 
   const refresh = () => setRefreshKey((value) => value + 1)
 
@@ -107,14 +134,41 @@ export default function App() {
 
   const leavePlay = () => {
     setAttempt(null)
+    setConfirm(null)
     refresh()
+  }
+
+  const requestLeave = () => {
+    if (attempt?.finished) {
+      leavePlay()
+      return
+    }
+    setConfirm({
+      title: 'Выйти из ситуации?',
+      text: 'Проход не будет закрыт. В истории он останется как незавершённый.',
+      confirmLabel: 'Выйти',
+      onConfirm: leavePlay,
+    })
+  }
+
+  const requestRestart = () => {
+    setConfirm({
+      title: 'Пройти ситуацию заново?',
+      text: 'Начнётся новый проход. Текущий итог в истории сохранится.',
+      confirmLabel: 'Начать заново',
+      cancelLabel: 'Отмена',
+      onConfirm: () => {
+        setConfirm(null)
+        startScenario(attempt.scenario.id)
+      },
+    })
   }
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">ВСМ</span>
+          <img className="brand-logo" src="/vsm-logo.png" alt="ВСМ. Высокоскоростная магистраль" />
           <div>
             <p className="eyebrow">Учебный тренажёр</p>
             <h1>Проводник пассажирского поезда</h1>
@@ -125,7 +179,7 @@ export default function App() {
           <div className="who">
             <span>Проводник</span>
             <strong>{employee.display_name}</strong>
-            <button type="button" onClick={leaveAccount}>
+            <button type="button" onClick={requestLogout}>
               Выйти
             </button>
           </div>
@@ -149,13 +203,17 @@ export default function App() {
             busy={busy}
             onChoose={choose}
             onTimeout={reportTimeout}
-            onRestart={() => startScenario(attempt.scenario.id)}
-            onLeave={leavePlay}
+            onRestart={requestRestart}
+            onLeave={requestLeave}
           />
+        </main>
+      ) : desk ? (
+        <main>
+          <Admin onBack={() => setDesk(false)} />
         </main>
       ) : !employee ? (
         <main>
-          <Login onEnter={enter} />
+          <Login onEnter={enter} onDesk={() => setDesk(true)} />
         </main>
       ) : (
         <>
@@ -188,6 +246,17 @@ export default function App() {
           </main>
         </>
       )}
+
+      {confirm ? (
+        <Confirm
+          title={confirm.title}
+          text={confirm.text}
+          confirmLabel={confirm.confirmLabel}
+          cancelLabel={confirm.cancelLabel}
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      ) : null}
 
       <footer className="app-foot muted">
         Демо-среда на синтетических данных: {employee ? employee.display_name : 'профиль не выбран'}.

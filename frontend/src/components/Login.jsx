@@ -11,7 +11,7 @@ const DEMO_CODES = [
   ['2407', 'Орлов Дмитрий Олегович'],
 ]
 
-export default function Login({ onEnter }) {
+export default function Login({ onEnter, onDesk }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -52,6 +52,7 @@ export default function Login({ onEnter }) {
           Войти
         </button>
       </form>
+      <button type="button" className="login-desk" onClick={onDesk}>Кабинет методиста</button>
       <details>
         <summary>Учебные коды для демонстрации</summary>
         <ul>

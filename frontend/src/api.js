@@ -34,4 +34,13 @@ export const api = {
   startAttempt: (employeeId, scenarioId) => post('/attempts', { employee_id: employeeId, scenario_id: scenarioId }),
   choose: (attemptId, optionId) => post(`/attempts/${attemptId}/choice`, { option_id: optionId }),
   reportTimeout: (attemptId) => post(`/attempts/${attemptId}/timeout`),
+  adminSession: (code) => post('/admin/session', { code }),
+  adminEmployees: (code) => request('/admin/employees', { headers: { 'Content-Type': 'application/json', 'X-Admin-Code': code } }),
+  adminCreateEmployee: (code, body) =>
+    request('/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Code': code }, body: JSON.stringify(body) }),
+  adminReissue: (code, employeeId) =>
+    request(`/admin/employees/${employeeId}/code`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Code': code } }),
+  adminScenarios: (code) => request('/admin/scenarios', { headers: { 'Content-Type': 'application/json', 'X-Admin-Code': code } }),
+  adminCreateScenario: (code, body) =>
+    request('/admin/scenarios', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Code': code }, body: JSON.stringify(body) }),
 }

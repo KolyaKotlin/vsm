@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/api_scenario_repository.dart';
+import '../data/scenario_repository.dart';
 import '../features/profile/onboarding_screen.dart';
 import '../state/app_state.dart';
 import '../widgets/railway.dart';
@@ -16,7 +18,17 @@ class VsmAcademyApp extends StatefulWidget {
 }
 
 class _VsmAcademyAppState extends State<VsmAcademyApp> {
-  late final AppState _state = AppState();
+  // API_BASE задаётся при сборке: --dart-define=API_BASE=http://10.0.2.2:8000
+  // 10.0.2.2 — это компьютер разработчика с точки зрения Android-эмулятора.
+  late final AppState _state = AppState(
+    scenarioRepository: ApiScenarioRepository(
+      baseUrl: const String.fromEnvironment(
+        'API_BASE',
+        defaultValue: 'http://127.0.0.1:8000',
+      ),
+      fallback: const AssetScenarioRepository(),
+    ),
+  );
 
   @override
   void initState() {

@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.8
+  sdk: ^3.10.0
 
 dependencies:
   flutter:
@@ -15,6 +15,7 @@ dependencies:
   # Пока бэкенда нет, это единственный источник правды по прогрессу.
   shared_preferences: ^2.3.3
   google_fonts: ^8.2.1
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:

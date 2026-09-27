@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from . import billing, engine, service
 from .db import init_db
-from .routers import catalog, employees, integrations, leaderboard, play
+from .routers import admin, catalog, employees, integrations, leaderboard, mobile, play
 
 DESCRIPTION = """
 Геймифицированный тренажёр для проводников ВСМ.
@@ -55,6 +55,8 @@ app.add_middleware(
 )
 
 app.include_router(catalog.router)
+app.include_router(mobile.router)
+app.include_router(admin.router)
 app.include_router(play.router)
 app.include_router(employees.router)
 app.include_router(leaderboard.router)
