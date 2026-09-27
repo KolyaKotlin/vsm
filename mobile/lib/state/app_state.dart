@@ -19,12 +19,11 @@ import '../engine/scenario_engine.dart';
 /// нужно объяснять, но который ничего не решает.
 class AppState extends ChangeNotifier {
   AppState({
-    ScenarioRepository? scenarioRepository,
+    required ScenarioRepository scenarioRepository,
     ProfileStore? profileStore,
     LeaderboardRepository? leaderboardRepository,
     NotificationCenter? notificationCenter,
-  }) : _scenarioRepository =
-           scenarioRepository ?? const AssetScenarioRepository(),
+  }) : _scenarioRepository = scenarioRepository,
        _profileStore = profileStore ?? ProfileStore(),
        _leaderboardRepository =
            leaderboardRepository ?? const LeaderboardRepository(),
@@ -52,6 +51,21 @@ class AppState extends ChangeNotifier {
   int get unreadNotificationCount => _notifications
       .where((n) => !_profile.seenNotificationIds.contains(n.id))
       .length;
+
+  /// Повторно читает каталог. Удачный ответ сервера заменяет сохранённую копию.
+  /// Если сети нет, на экране остаётся уже открытый список.
+  Future<void> refreshScenarios() async {
+    try {
+      _scenarios = await _scenarioRepository.loadScenarios();
+      _loadError = null;
+      notifyListeners();
+    } catch (error) {
+      if (_scenarios.isEmpty) {
+        _loadError = error;
+        notifyListeners();
+      }
+    }
+  }
 
   Future<void> bootstrap() async {
     _isLoading = true;

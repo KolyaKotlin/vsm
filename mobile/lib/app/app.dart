@@ -11,35 +11,51 @@ import 'theme.dart';
 /// Корень приложения: создаёт [AppState], раздаёт его через [AppScope] и
 /// держит экран загрузки, пока читаются сценарии и профиль.
 class VsmAcademyApp extends StatefulWidget {
-  const VsmAcademyApp({super.key});
+  const VsmAcademyApp({super.key, this.scenarioRepository});
+
+  /// В приложении каталог берётся с сервера. Тест подставляет свой источник.
+  final ScenarioRepository? scenarioRepository;
 
   @override
   State<VsmAcademyApp> createState() => _VsmAcademyAppState();
 }
 
-class _VsmAcademyAppState extends State<VsmAcademyApp> {
+class _VsmAcademyAppState extends State<VsmAcademyApp>
+    with WidgetsBindingObserver {
   // API_BASE задаётся при сборке: --dart-define=API_BASE=http://10.0.2.2:8000
   // 10.0.2.2 — это компьютер разработчика с точки зрения Android-эмулятора.
   late final AppState _state = AppState(
-    scenarioRepository: ApiScenarioRepository(
-      baseUrl: const String.fromEnvironment(
-        'API_BASE',
-        defaultValue: 'http://127.0.0.1:8000',
-      ),
-      fallback: const AssetScenarioRepository(),
-    ),
+    scenarioRepository:
+        widget.scenarioRepository ??
+        ApiScenarioRepository(
+          baseUrl: const String.fromEnvironment(
+            'API_BASE',
+            defaultValue: 'http://127.0.0.1:8000',
+          ),
+        ),
   );
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _state.bootstrap();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _state.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Сеть могла появиться, пока приложение было свёрнуто: каталог обновляется
+    // и заменяет сохранённую копию. Без сети остаётся то, что уже скачано.
+    if (state == AppLifecycleState.resumed) {
+      _state.refreshScenarios();
+    }
   }
 
   @override
@@ -138,7 +154,7 @@ class _LoadErrorScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '$error',
+                error.toString().replaceFirst('Exception: ', ''),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

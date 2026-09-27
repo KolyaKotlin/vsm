@@ -97,10 +97,15 @@ def scenarios(x_admin_code: str = Header(default="")) -> list[views.ScenarioBrie
 
 
 @router.post("/scenarios", response_model=views.ScenarioBrief, summary="Добавить ситуацию")
-def create_scenario(payload: NewScenario, x_admin_code: str = Header(default="")) -> views.ScenarioBrief:
+def create_scenario(
+    payload: NewScenario,
+    x_admin_code: str = Header(default=""),
+    connection: sqlite3.Connection = Depends(get_connection),
+) -> views.ScenarioBrief:
     _guard(x_admin_code)
     try:
         scenario = studio.save_scenario(payload.model_dump())
+        studio.announce_scenario(connection, scenario.title)
     except studio.AdminError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
     except ScenarioError as error:

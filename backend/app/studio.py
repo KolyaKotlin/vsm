@@ -16,6 +16,7 @@ import sqlite3
 from pydantic import ValidationError
 
 from . import scenarios, service
+from .db import now_iso
 from .engine import COMPETENCY_TITLES, Scenario, ScenarioError, validate
 
 ADMIN_CODE = os.environ.get("VSM_ADMIN_CODE", "mentor")
@@ -31,8 +32,16 @@ def check_code(code: str) -> None:
 
 
 def _plain(text: str) -> str:
-    """Убирает кавычки и лишние точки: фраза вставится в свою реплику."""
-    return " ".join(text.replace("«", " ").replace("»", " ").split()).strip(" .")
+    """Убирает кавычки и хвостовую пунктуацию: фраза вставится в свою реплику."""
+    return " ".join(text.replace("«", " ").replace("»", " ").split()).strip(" .!?…")
+
+
+def _clause(text: str) -> str:
+    """Та же фраза внутри предложения: первая буква строчная."""
+    clean = _plain(text)
+    if not clean:
+        return ""
+    return clean[0].lower() + clean[1:]
 
 
 def _sentence(text: str) -> str:
@@ -44,23 +53,6 @@ def _sentence(text: str) -> str:
 
 def _spoken(text: str) -> str:
     return f"«{_sentence(text)}.»"
-
-
-def _fit_lengths(options: list[dict], tails: list[str]) -> None:
-    """Короткая реплика читается как ошибка. Добиваем длину разными фразами, не одной и той же."""
-    if len(options) < 2:
-        return
-    for _ in range(len(tails)):
-        longest = max(len(item["text"]) for item in options)
-        pending = [item for item in options if longest - len(item["text"]) > 50]
-        if not pending:
-            return
-        for item in pending:
-            unused = next((tail for tail in tails if tail not in item["text"]), None)
-            if unused is None:
-                continue
-            text = item["text"].rstrip()
-            item["text"] = text[:-1].rstrip() + " " + unused + "»" if text.endswith("»") else text + " " + unused
 
 
 def _debrief(text: str, better: str | None = None) -> str:
@@ -124,7 +116,7 @@ def build_scenario_document(payload: dict, number: int) -> dict:
     scenario_id = f"custom_{number}_{_slug(title)}"
     critical = bool(payload.get("critical"))
     bad_next = "o_bad" if critical else "s_slip"
-    rule_clause = _plain(rule)
+    rule_clause = _clause(rule)
     offer_sentence = _sentence(offer)
     wrong = _spoken(refusal)
 
@@ -169,7 +161,7 @@ def build_scenario_document(payload: dict, number: int) -> dict:
             _spoken(passenger),
             25,
             choices(
-                f"«Я вас понимаю. Обращаю ваше внимание: {rule_clause}. {offer_sentence}.»",
+                f"«{_sentence(rule)}. {offer_sentence}.»",
                 f"Сначала признали человека и сразу назвали правило этой ситуации: {rule_clause}.",
                 "s2",
                 f"«{ _sentence(rule) }. Разбираться дольше не будем, проходите и не задерживайте салон.»",
@@ -329,17 +321,6 @@ def build_scenario_document(payload: dict, number: int) -> dict:
         "start": "s1",
         "nodes": nodes,
     }
-    tails = [
-        "Скажу это ровно так и ничего больше не добавлю.",
-        "Даже если пассажир переспросит, вторую фразу я не произнесу.",
-        "После этой реплики я жду, что человек сам отойдёт.",
-        "Соседям я ничего отдельно объяснять не стану.",
-        f"Ситуацию «{title}» я закрываю именно этой фразой.",
-        "Дальше стою молча и жду, пока проход освободится.",
-    ]
-    for node in document["nodes"].values():
-        options = node.get("options") or []
-        _fit_lengths(options, tails)
     try:
         scenario = Scenario.model_validate(document)
     except ValidationError as error:
@@ -369,6 +350,25 @@ def save_scenario(payload: dict) -> Scenario:
         service.reload_catalog()
         raise
     return service.get_scenario(document["id"])
+
+
+def announce_scenario(connection: sqlite3.Connection, title: str) -> None:
+    """Пишет каждому проводнику, что в журнале появилась новая ситуация."""
+    stamp = now_iso()
+    rows = connection.execute("SELECT id FROM employees").fetchall()
+    connection.executemany(
+        "INSERT INTO notifications (employee_id, kind, title, body, created_at) VALUES (?, ?, ?, ?, ?)",
+        [
+            (
+                row["id"],
+                "new_scenario",
+                f"Новая ситуация: «{title}»",
+                "Она уже в журнале, можно открыть и пройти.",
+                stamp,
+            )
+            for row in rows
+        ],
+    )
 
 
 def list_employees(connection: sqlite3.Connection) -> list[dict]:

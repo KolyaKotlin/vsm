@@ -7,7 +7,7 @@ import 'package:vsm_academy/engine/role_model.dart';
 import 'package:vsm_academy/engine/scenario_engine.dart';
 
 Scenario _load(String fileName) {
-  final file = File('assets/scenarios/$fileName');
+  final file = File('test/fixtures/scenarios/$fileName');
   final json = jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
   return Scenario.fromJson(json);
 }

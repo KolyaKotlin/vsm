@@ -245,11 +245,14 @@ def test_admin_adds_a_situation_and_explains_a_locked_catalog(
     written = list(tmp_path.glob("*.json"))
     assert written
     saved = __import__("json").loads(written[0].read_text(encoding="utf-8"))
-    first = saved["nodes"]["s1"]["options"][0]["text"]
+    first = saved["nodes"]["s1"]["options"][0]["text"].lower()
     assert "плед выдаётся за доплату" in first
-    assert "оформлю доплату" in first.lower()
+    assert "оформлю доплату" in first
     assert "s_loud" in saved["nodes"] and "s5" in saved["nodes"]
     assert "Исключения не будет" not in written[0].read_text(encoding="utf-8")
+    assert "Скажу это ровно так" not in written[0].read_text(encoding="utf-8")
+    notes = client.get("/api/employees/1/notifications").json()
+    assert any(item["title"] == "Новая ситуация: «Пассажир просит плед»" for item in notes)
 
     def locked(self: Path, *_args: object, **_kwargs: object) -> None:
         raise PermissionError("read-only file system")

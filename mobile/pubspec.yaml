@@ -16,6 +16,7 @@ dependencies:
   shared_preferences: ^2.3.3
   google_fonts: ^8.2.1
   http: ^1.2.2
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -26,7 +27,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/scenarios/
     - assets/data/
     - assets/logo.jpg
     - assets/logo_mark.png
