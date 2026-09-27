@@ -1,0 +1,34 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      VSM_DB_PATH: /data/vsm.sqlite3
+      VSM_ALLOWED_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
+    volumes:
+      - vsm-data:/data
+      # Сценарии подключены томом: файл можно поправить на ходу и перечитать
+      # через POST /api/scenarios/reload, не пересобирая образ.
+      - ./backend/scenarios:/app/scenarios:ro
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/health")
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  vsm-data:
