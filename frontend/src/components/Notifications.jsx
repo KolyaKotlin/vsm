@@ -32,8 +32,7 @@ export default function Notifications({ employeeId, refreshKey, onRead }) {
     <section>
       <h2>Уведомления</h2>
       <p className="muted section-hint">
-        Тренажёр напоминает о новых ситуациях, челленджах и о компетенциях, баллы по которым скоро
-        сгорят.
+        Новые ситуации, задания на смену и компетенции, баллы по которым скоро сгорят.
       </p>
 
       <ul className="notifications">

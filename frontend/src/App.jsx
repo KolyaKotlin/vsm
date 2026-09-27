@@ -3,9 +3,12 @@ import { api } from './api.js'
 import Analytics from './components/Analytics.jsx'
 import Leaderboard from './components/Leaderboard.jsx'
 import Notifications from './components/Notifications.jsx'
+import Login from './components/Login.jsx'
 import PlayScreen from './components/PlayScreen.jsx'
 import Profile from './components/Profile.jsx'
 import ScenarioList from './components/ScenarioList.jsx'
+
+const SESSION_KEY = 'vsm-employee'
 
 const TABS = [
   { id: 'scenarios', label: 'Ситуации' },
@@ -15,9 +18,17 @@ const TABS = [
   { id: 'notifications', label: 'Уведомления' },
 ]
 
+const readSession = () => {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
-  const [employees, setEmployees] = useState([])
-  const [employeeId, setEmployeeId] = useState(null)
+  const [employee, setEmployee] = useState(readSession)
   const [tab, setTab] = useState('scenarios')
   const [attempt, setAttempt] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -27,16 +38,21 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [unread, setUnread] = useState(0)
 
-  useEffect(() => {
-    api
-      .employees()
-      .then((list) => {
-        setEmployees(list)
-        const trainee = list.find((item) => item.login === 'demo.trainee') || list[0]
-        setEmployeeId(trainee?.id ?? null)
-      })
-      .catch((problem) => setError(problem.message))
-  }, [])
+  const employeeId = employee?.id ?? null
+
+  const enter = (next) => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(next))
+    setEmployee(next)
+    setAttempt(null)
+    setTab('scenarios')
+    setError(null)
+  }
+
+  const leaveAccount = () => {
+    sessionStorage.removeItem(SESSION_KEY)
+    setEmployee(null)
+    setAttempt(null)
+  }
 
   useEffect(() => {
     if (!employeeId) return
@@ -94,37 +110,29 @@ export default function App() {
     refresh()
   }
 
-  const currentEmployee = employees.find((item) => item.id === employeeId)
-
   return (
     <div className="app">
-      <header className="app-head">
+      <header className="topbar">
         <div className="brand">
           <span className="brand-mark">ВСМ</span>
           <div>
-            <h1>Тренажёр проводников</h1>
-            <p className="muted">Нештатные ситуации на борту высокоскоростного поезда</p>
+            <p className="eyebrow">Учебный тренажёр</p>
+            <h1>Проводник пассажирского поезда</h1>
           </div>
         </div>
 
-        <label className="employee-picker">
-          <span className="muted">Профиль проводника</span>
-          <select
-            value={employeeId ?? ''}
-            onChange={(event) => {
-              setEmployeeId(Number(event.target.value))
-              setAttempt(null)
-            }}
-          >
-            {employees.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.display_name} · уровень {item.level}
-              </option>
-            ))}
-          </select>
-        </label>
+        {employee ? (
+          <div className="who">
+            <span>Проводник</span>
+            <strong>{employee.display_name}</strong>
+            <button type="button" onClick={leaveAccount}>
+              Выйти
+            </button>
+          </div>
+        ) : null}
       </header>
 
+      <div className="sheet">
       {error ? (
         <p className="error banner">
           {error}
@@ -145,6 +153,10 @@ export default function App() {
             onLeave={leavePlay}
           />
         </main>
+      ) : !employee ? (
+        <main>
+          <Login onEnter={enter} />
+        </main>
       ) : (
         <>
           <nav className="tabs">
@@ -162,9 +174,7 @@ export default function App() {
           </nav>
 
           <main>
-            {!employeeId ? (
-              <p className="muted">Загрузка демо-профилей…</p>
-            ) : tab === 'scenarios' ? (
+            {tab === 'scenarios' ? (
               <ScenarioList employeeId={employeeId} refreshKey={refreshKey} onStart={startScenario} />
             ) : tab === 'profile' ? (
               <Profile employeeId={employeeId} refreshKey={refreshKey} />
@@ -180,9 +190,10 @@ export default function App() {
       )}
 
       <footer className="app-foot muted">
-        Демо-среда на синтетических данных: {currentEmployee ? currentEmployee.display_name : 'профиль не выбран'}.
+        Демо-среда на синтетических данных: {employee ? employee.display_name : 'профиль не выбран'}.
         Реальные персональные данные пассажиров и сотрудников не используются.
       </footer>
+      </div>
     </div>
   )
 }

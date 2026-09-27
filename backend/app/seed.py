@@ -24,7 +24,8 @@ ACHIEVEMENTS: list[tuple[str, str, str]] = [
 DEMO_EMPLOYEES: list[dict[str, object]] = [
     {
         "login": "demo.trainee",
-        "display_name": "Вы (демо-профиль)",
+        "display_name": "Соколова Мария Ильинична (демо)",
+        "access_code": "2401",
         "position": "Проводник",
         "brigade": "Бригада 1",
         "depot": "Депо Москва-Восточное",
@@ -33,7 +34,8 @@ DEMO_EMPLOYEES: list[dict[str, object]] = [
     },
     {
         "login": "demo.morozov",
-        "display_name": "А. Морозов (демо)",
+        "display_name": "Морозов Артём Сергеевич (демо)",
+        "access_code": "2402",
         "position": "Проводник",
         "brigade": "Бригада 1",
         "depot": "Депо Москва-Восточное",
@@ -42,7 +44,8 @@ DEMO_EMPLOYEES: list[dict[str, object]] = [
     },
     {
         "login": "demo.lebedeva",
-        "display_name": "И. Лебедева (демо)",
+        "display_name": "Лебедева Ирина Павловна (демо)",
+        "access_code": "2403",
         "position": "Проводник",
         "brigade": "Бригада 1",
         "depot": "Депо Москва-Восточное",
@@ -51,7 +54,8 @@ DEMO_EMPLOYEES: list[dict[str, object]] = [
     },
     {
         "login": "demo.kim",
-        "display_name": "С. Ким (демо)",
+        "display_name": "Ким Сергей Андреевич (демо)",
+        "access_code": "2404",
         "position": "Старший проводник",
         "brigade": "Бригада 2",
         "depot": "Депо Москва-Восточное",
@@ -60,7 +64,8 @@ DEMO_EMPLOYEES: list[dict[str, object]] = [
     },
     {
         "login": "demo.saidov",
-        "display_name": "Р. Саидов (демо)",
+        "display_name": "Саидов Руслан Тимурович (демо)",
+        "access_code": "2405",
         "position": "Проводник",
         "brigade": "Бригада 2",
         "depot": "Депо Москва-Восточное",
@@ -69,7 +74,8 @@ DEMO_EMPLOYEES: list[dict[str, object]] = [
     },
     {
         "login": "demo.novikova",
-        "display_name": "Е. Новикова (демо)",
+        "display_name": "Новикова Елена Викторовна (демо)",
+        "access_code": "2406",
         "position": "Проводник",
         "brigade": "Бригада 4",
         "depot": "Депо Санкт-Петербург-Южное",
@@ -78,7 +84,8 @@ DEMO_EMPLOYEES: list[dict[str, object]] = [
     },
     {
         "login": "demo.orlov",
-        "display_name": "Д. Орлов (демо)",
+        "display_name": "Орлов Дмитрий Олегович (демо)",
+        "access_code": "2407",
         "position": "Проводник",
         "brigade": "Бригада 4",
         "depot": "Депо Санкт-Петербург-Южное",
@@ -114,10 +121,30 @@ def ensure_reference_data(connection: sqlite3.Connection) -> None:
     )
 
 
+def ensure_access_codes(connection: sqlite3.Connection) -> None:
+    """Добавляет код доступа в уже созданную базу и проставляет ФИО демо-сотрудникам.
+
+    CREATE TABLE IF NOT EXISTS не меняет старый файл, поэтому колонку добавляем
+    отдельно. Код — учебная карточка, не пароль.
+    """
+
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(employees)")}
+    if "access_code" not in columns:
+        connection.execute("ALTER TABLE employees ADD COLUMN access_code TEXT")
+    connection.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_access_code ON employees (access_code)"
+    )
+    connection.executemany(
+        "UPDATE employees SET display_name = ?, access_code = ? WHERE login = ?",
+        [(item["display_name"], item["access_code"], item["login"]) for item in DEMO_EMPLOYEES],
+    )
+
+
 def ensure_demo_employees(connection: sqlite3.Connection) -> None:
     for employee in DEMO_EMPLOYEES:
         cursor = connection.execute(
-            "INSERT INTO employees (login, display_name, position, brigade, depot, xp) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO employees (login, display_name, position, brigade, depot, xp, access_code) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 employee["login"],
                 employee["display_name"],
@@ -125,6 +152,7 @@ def ensure_demo_employees(connection: sqlite3.Connection) -> None:
                 employee["brigade"],
                 employee["depot"],
                 employee["xp"],
+                employee["access_code"],
             ),
         )
         employee_id = cursor.lastrowid

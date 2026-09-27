@@ -61,17 +61,8 @@ def get_scenario(scenario_id: str) -> engine.Scenario:
 
 
 def scenario_list() -> list[views.ScenarioBrief]:
-    return [
-        views.ScenarioBrief(
-            id=scenario.id,
-            title=scenario.title,
-            summary=scenario.summary,
-            service_class=scenario.service_class,
-            car=scenario.car,
-            primary_competency=scenario.primary_competency,
-        )
-        for scenario in catalog().values()
-    ]
+    ordered = sorted(catalog().values(), key=lambda scenario: (scenario.number or 999, scenario.title))
+    return [views.scenario_brief(scenario) for scenario in ordered]
 
 
 def start_attempt(connection: sqlite3.Connection, employee_id: int, scenario_id: str) -> views.AttemptView:
@@ -183,7 +174,10 @@ def _view(
         kind=node.kind,
         narration=node.narration,
         passenger=node.passenger,
-        options=[views.OptionView(id=option.id, text=option.text) for option in node.options],
+        options=[
+            views.OptionView(id=option.id, text=option.text)
+            for option in views.shown_options(scenario.id, state.node_id, node.options)
+        ],
         timer_seconds=node.timer_seconds,
         deadline_at=row["deadline_at"],
     )
@@ -214,14 +208,7 @@ def _view(
     return views.AttemptView(
         attempt_id=row["id"],
         employee_id=row["employee_id"],
-        scenario=views.ScenarioBrief(
-            id=scenario.id,
-            title=scenario.title,
-            summary=scenario.summary,
-            service_class=scenario.service_class,
-            car=scenario.car,
-            primary_competency=scenario.primary_competency,
-        ),
+        scenario=views.scenario_brief(scenario),
         loyalty=state.loyalty,
         safety=state.safety,
         finished=finished,

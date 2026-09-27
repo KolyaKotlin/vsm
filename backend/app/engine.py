@@ -141,6 +141,10 @@ class Scenario(Frozen):
     service_class: str
     car: str
     primary_competency: str
+    # Номер и раздел из методички. По ним строится журнал ситуаций.
+    # У служебных сценариев в тестах полей нет.
+    number: int = 0
+    section: str = ""
     initial_loyalty: int = 70
     initial_safety: int = 80
     start: str

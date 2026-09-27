@@ -26,15 +26,7 @@ def reload_scenarios() -> list[views.ScenarioBrief]:
 
 @router.get("/{scenario_id}", response_model=views.ScenarioBrief, summary="Карточка сценария")
 def get_scenario(scenario_id: str) -> views.ScenarioBrief:
-    scenario = service.get_scenario(scenario_id)
-    return views.ScenarioBrief(
-        id=scenario.id,
-        title=scenario.title,
-        summary=scenario.summary,
-        service_class=scenario.service_class,
-        car=scenario.car,
-        primary_competency=scenario.primary_competency,
-    )
+    return views.scenario_brief(service.get_scenario(scenario_id))
 
 
 @router.get("/{scenario_id}/source", response_model=engine.Scenario, summary="Исходник сценария для методиста")

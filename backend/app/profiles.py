@@ -10,6 +10,10 @@ from .service import EmployeeNotFound
 LEADERBOARD_SCOPES = ("brigade", "depot", "company")
 
 
+class InvalidAccessCode(Exception):
+    """Код с учебной карточки не совпал ни с одним демо-профилем."""
+
+
 def employee_row(connection: sqlite3.Connection, employee_id: int) -> sqlite3.Row:
     row = connection.execute("SELECT * FROM employees WHERE id = ?", (employee_id,)).fetchone()
     if row is None:
@@ -17,18 +21,32 @@ def employee_row(connection: sqlite3.Connection, employee_id: int) -> sqlite3.Ro
     return row
 
 
+def _brief(row: sqlite3.Row) -> views.EmployeeBrief:
+    return views.EmployeeBrief(
+        id=row["id"],
+        login=row["login"],
+        display_name=row["display_name"],
+        position=row["position"],
+        brigade=row["brigade"],
+        depot=row["depot"],
+        xp=row["xp"],
+        level=scoring.level_for_xp(row["xp"]),
+    )
+
+
+def employee_by_access_code(connection: sqlite3.Connection, code: str) -> views.EmployeeBrief:
+    row = connection.execute(
+        "SELECT * FROM employees WHERE access_code = ?",
+        (code.strip(),),
+    ).fetchone()
+    if row is None:
+        raise InvalidAccessCode
+    return _brief(row)
+
+
 def employee_list(connection: sqlite3.Connection) -> list[views.EmployeeBrief]:
     return [
-        views.EmployeeBrief(
-            id=row["id"],
-            login=row["login"],
-            display_name=row["display_name"],
-            position=row["position"],
-            brigade=row["brigade"],
-            depot=row["depot"],
-            xp=row["xp"],
-            level=scoring.level_for_xp(row["xp"]),
-        )
+        _brief(row)
         for row in connection.execute("SELECT * FROM employees ORDER BY xp DESC")
     ]
 

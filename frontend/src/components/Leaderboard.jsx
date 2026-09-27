@@ -17,10 +17,9 @@ export default function Leaderboard({ employeeId, refreshKey }) {
 
   return (
     <section>
-      <h2>Таблица лидеров</h2>
+      <h2>Рейтинг</h2>
       <p className="muted section-hint">
-        Рейтинг считается по накопленному опыту: он растёт за закрытые сценарии и падает при
-        ошибочных решениях.
+        Место считается по накопленному опыту: сданные ситуации его поднимают, ошибочные решения снижают.
       </p>
 
       <div className="tabs small">

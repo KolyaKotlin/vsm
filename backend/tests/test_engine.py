@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app import engine, scenarios
+from app import engine, scenarios, views
 
 
 @pytest.fixture(scope="module")
@@ -15,6 +15,43 @@ def all_scenarios() -> dict[str, engine.Scenario]:
 @pytest.fixture()
 def conflict(all_scenarios: dict[str, engine.Scenario]) -> engine.Scenario:
     return all_scenarios["two_passengers_one_seat"]
+
+
+def test_correct_reply_is_not_given_away(all_scenarios: dict[str, engine.Scenario]) -> None:
+    """Первый пункт и самая длинная реплика не должны быть правильным ответом.
+
+    Иначе прохождение превращается в поиск длинной кнопки сверху, а не в решение.
+    """
+
+    first = 0
+    longest = 0
+    total = 0
+    for scenario in all_scenarios.values():
+        for node_id, node in scenario.nodes.items():
+            if node.kind != "situation":
+                continue
+            total += 1
+            shown = views.shown_options(scenario.id, node_id, node.options)
+            if shown[0].quality == "optimal":
+                first += 1
+            optimal = max(len(option.text) for option in node.options if option.quality == "optimal")
+            others = [len(option.text) for option in node.options if option.quality != "optimal"]
+            if optimal > max(others):
+                longest += 1
+            lengths = [len(option.text) for option in node.options]
+            assert max(lengths) - min(lengths) <= 55, (
+                f"{scenario.id}/{node_id}: реплики слишком разной длины, короткая читается как ошибка"
+            )
+
+    assert total >= 51
+    assert first < total * 0.45
+    assert longest < total * 0.45
+
+
+def test_catalog_covers_every_methodology_situation(all_scenarios: dict[str, engine.Scenario]) -> None:
+    numbers = sorted(scenario.number for scenario in all_scenarios.values())
+    assert numbers == list(range(1, 52))
+    assert all(scenario.section for scenario in all_scenarios.values())
 
 
 def test_all_scenarios_are_valid(all_scenarios: dict[str, engine.Scenario]) -> None:

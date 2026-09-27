@@ -5,12 +5,28 @@ from __future__ import annotations
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
 from .. import analytics, profiles, service, views
 from ..db import now_iso
 from ..deps import get_connection
 
 router = APIRouter(prefix="/api", tags=["Проводник"])
+
+
+class AccessCode(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+
+
+@router.post("/access", response_model=views.EmployeeBrief, summary="Войти по коду с учебной карточки")
+def enter_by_code(payload: AccessCode, connection: sqlite3.Connection = Depends(get_connection)) -> views.EmployeeBrief:
+    try:
+        return profiles.employee_by_access_code(connection, payload.code)
+    except profiles.InvalidAccessCode:
+        raise HTTPException(
+            status_code=401,
+            detail="Код не подошёл. Проверьте карточку и введите ещё раз.",
+        ) from None
 
 
 @router.get("/employees", response_model=list[views.EmployeeBrief], summary="Список проводников демо-среды")

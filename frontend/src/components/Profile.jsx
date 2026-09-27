@@ -3,7 +3,10 @@ import { useApiData } from '../useApiData.js'
 
 export default function Profile({ employeeId, refreshKey }) {
   const { data: profile, error } = useApiData(() => api.profile(employeeId), [employeeId, refreshKey])
-  const { data: history } = useApiData(() => api.attempts(employeeId), [employeeId, refreshKey])
+  const { data: history, error: historyError } = useApiData(
+    () => api.attempts(employeeId),
+    [employeeId, refreshKey],
+  )
 
   if (error) return <p className="error">{error}</p>
   if (!profile) return <p className="muted">Загрузка профиля…</p>
@@ -25,7 +28,7 @@ export default function Profile({ employeeId, refreshKey }) {
         </div>
       </header>
 
-      <div className="debrief-grid">
+      <div className="profile-grid">
         <div className="card">
           <h3>Очки компетенций</h3>
           <ul className="competency-bars">
@@ -58,8 +61,12 @@ export default function Profile({ employeeId, refreshKey }) {
         </div>
       </div>
 
-      <h3>История смен</h3>
-      {history && history.length > 0 ? (
+      <h3 className="sheet-title">История смен</h3>
+      {historyError ? (
+        <p className="error">История смен недоступна: {historyError}</p>
+      ) : !history ? (
+        <p className="muted">Смотрим историю смен…</p>
+      ) : history.length > 0 ? (
         <table className="table">
           <thead>
             <tr>

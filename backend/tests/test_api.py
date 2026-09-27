@@ -153,6 +153,17 @@ def test_invalid_option_returns_400(client: TestClient, trainee_id: int) -> None
     assert "не найден" in response.json()["detail"]
 
 
+def test_access_code_opens_named_profile_and_rejects_unknown(client: TestClient) -> None:
+    opened = client.post("/api/access", json={"code": "2401"})
+    assert opened.status_code == 200
+    body = opened.json()
+    assert body["display_name"] == "Соколова Мария Ильинична (демо)"
+    assert "access_code" not in body
+
+    rejected = client.post("/api/access", json={"code": "0000"})
+    assert rejected.status_code == 401
+
+
 def test_hr_integration_creates_employee_and_lms_exports_results(client: TestClient) -> None:
     created = client.post(
         "/api/integrations/hr/employees",

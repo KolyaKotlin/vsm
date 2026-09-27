@@ -8,14 +8,35 @@ OptionView остаются только идентификатор и текс�
 
 from __future__ import annotations
 
+import hashlib
+import random
+
 from pydantic import BaseModel
 
-from .engine import Step
+from .engine import Option, Scenario, Step
 
 
 class OptionView(BaseModel):
     id: str
     text: str
+
+
+def shown_options(scenario_id: str, node_id: str, options: list[Option]) -> list[Option]:
+    """Порядок кнопок на экране не совпадает с порядком в файле сценария.
+
+    В JSON сначала лежит сильный вариант: так проще править текст. Игроку
+    этот порядок отдавать нельзя, иначе первый пункт каждый раз и есть ответ.
+    Перестановка одна и та же для узла, поэтому обновление страницы кнопки
+    не переставляет.
+    """
+
+    if len(options) < 2:
+        return list(options)
+
+    digest = hashlib.sha256(f"{scenario_id}:{node_id}".encode()).digest()
+    ordered = list(options)
+    random.Random(digest).shuffle(ordered)
+    return ordered
 
 
 class NodeView(BaseModel):
@@ -35,6 +56,21 @@ class ScenarioBrief(BaseModel):
     service_class: str
     car: str
     primary_competency: str
+    number: int = 0
+    section: str = ""
+
+
+def scenario_brief(scenario: Scenario) -> ScenarioBrief:
+    return ScenarioBrief(
+        id=scenario.id,
+        title=scenario.title,
+        summary=scenario.summary,
+        service_class=scenario.service_class,
+        car=scenario.car,
+        primary_competency=scenario.primary_competency,
+        number=scenario.number,
+        section=scenario.section,
+    )
 
 
 class CompetencyGain(BaseModel):

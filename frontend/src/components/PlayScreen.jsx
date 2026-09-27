@@ -14,13 +14,18 @@ export default function PlayScreen({ attempt, busy, onChoose, onTimeout, onResta
     <section className="play">
       <header className="play-head">
         <div>
+          <p className="play-kicker">
+            Ситуация {String(attempt.scenario.number).padStart(2, '0')}
+            {attempt.scenario.section ? ` · ${attempt.scenario.section}` : ''}
+          </p>
           <h2>{attempt.scenario.title}</h2>
           <p className="muted">
-            {attempt.scenario.car} · решение № {attempt.steps_taken + 1}
+            {attempt.scenario.car} · решение {attempt.steps_taken + 1}
           </p>
+          {attempt.steps_taken === 0 ? <p className="brief">{attempt.scenario.summary}</p> : null}
         </div>
         <button type="button" onClick={onLeave}>
-          Прервать
+          Выйти
         </button>
       </header>
 
@@ -44,7 +49,7 @@ export default function PlayScreen({ attempt, busy, onChoose, onTimeout, onResta
       ) : null}
 
       <div className="options">
-        {node.options.map((option) => (
+        {node.options.map((option, index) => (
           <button
             key={option.id}
             type="button"
@@ -52,7 +57,8 @@ export default function PlayScreen({ attempt, busy, onChoose, onTimeout, onResta
             disabled={busy}
             onClick={() => onChoose(option.id)}
           >
-            {option.text}
+            <span className="option-index">{index + 1}</span>
+            <span>{option.text}</span>
           </button>
         ))}
       </div>

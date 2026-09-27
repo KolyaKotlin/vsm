@@ -18,6 +18,7 @@ const post = (path, body) => request(path, { method: 'POST', body: body ? JSON.s
 
 export const api = {
   health: () => request('/health'),
+  enter: (code) => post('/access', { code }),
   employees: () => request('/employees'),
   profile: (employeeId) => request(`/employees/${employeeId}/profile`),
   analytics: (employeeId) => request(`/employees/${employeeId}/analytics`),

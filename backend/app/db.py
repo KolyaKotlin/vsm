@@ -43,5 +43,6 @@ def init_db() -> None:
     with connect() as connection:
         connection.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
         seed.ensure_reference_data(connection)
+        seed.ensure_access_codes(connection)
         if connection.execute("SELECT COUNT(*) FROM employees").fetchone()[0] == 0:
             seed.ensure_demo_employees(connection)

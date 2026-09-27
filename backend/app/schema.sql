@@ -9,7 +9,10 @@ CREATE TABLE IF NOT EXISTS employees (
     brigade      TEXT    NOT NULL,
     depot        TEXT    NOT NULL,
     xp           INTEGER NOT NULL DEFAULT 0,
-    hr_ref       TEXT
+    hr_ref       TEXT,
+    -- Код с учебной карточки. Это не пароль и не пропуск: в демо-контуре
+    -- по нему только открывается вымышленный профиль.
+    access_code  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS competency_points (

@@ -15,10 +15,10 @@ export default function Analytics({ employeeId, refreshKey }) {
 
   return (
     <section>
-      <h2>Аналитика компетенций</h2>
+      <h2>Разбор компетенций</h2>
       <p className="muted section-hint">
-        Данные собираются из решений внутри сценариев: учитываются не только итоги, но и каждая
-        развилка.
+        Считается по каждому решению, а не только по итогу ситуации. Так видно, где регламент
+        проседает ещё до финала.
       </p>
 
       <div className="metrics">
@@ -48,7 +48,7 @@ export default function Analytics({ employeeId, refreshKey }) {
         </div>
       </div>
 
-      <div className="debrief-grid">
+      <div className="profile-grid">
         <div className="card">
           <h3>Состояние компетенций</h3>
           <ul className="competency-list">
